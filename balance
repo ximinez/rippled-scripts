@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Show an extremely abbreviated summary of the current account line balances and
+# XRP balance. Account can be provided on the command line or stored in a file
+# called "ripple-account.txt" in the same directory that this script runs from.
+
+accountfile="$( dirname $0 )/ripple-account.txt"
+if [ -r ${accountfile} ]
+then
+  defaultaccount=$(cat ${accountfile})
+else
+  defaultaccount=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
+fi
+account=${1:-${defaultaccount}}
+~/dev/rippled-upstream/build/gcc.debug/rippled -q --conf ~/.config/ripple/rippled-uni.cfg account_lines ${account} | egrep 'balance|currency|ledger_current_index' \
+  && ~/dev/rippled-upstream/build/gcc.debug/rippled -q --conf ~/.config/ripple/rippled-uni.cfg account_info ${account} | grep 'Balance'
