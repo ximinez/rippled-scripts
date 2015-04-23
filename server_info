@@ -1,0 +1,3 @@
+#!/bin/bash
+
+~/dev/rippled-upstream/build/gcc.debug/rippled -q --conf ~/.config/ripple/rippled-uni.cfg server_info | tail -50
