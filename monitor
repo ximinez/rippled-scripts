@@ -1,0 +1,7 @@
+#!/bin/sh
+
+gnome-terminal --tab -t server_info -e "watch -c -d  -n 0.2 server_info" \
+  --tab-with-profile=Persistent -t balance -e "watch -d=permanent -n 1 balance" \
+  --tab -t peerfinder -e "watch -d -n 0.2  ~/dev/rippled-upstream/build/gcc.debug/rippled --conf ~/.config/ripple/rippled-uni.cfg print peerfinder" \
+  --tab -t crawl -e "watch -d -n 0.05 curl -k https://127.0.0.1:51235/crawl" \
+  --tab -t top -e "top"
