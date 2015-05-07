@@ -18,4 +18,4 @@ account=${1:-${defaultaccount}}
     | egrep 'balance|currency|ledger_current_index|error' \
   && ~/dev/rippled-upstream/build/gcc.debug/rippled -q \
     --conf ~/.config/ripple/rippled-uni.cfg account_info ${account} validated \
-      | grep 'Balance|error'
+      | egrep 'Balance|error'
