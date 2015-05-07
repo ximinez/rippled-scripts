@@ -12,5 +12,10 @@ else
   defaultaccount=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
 fi
 account=${1:-${defaultaccount}}
-~/dev/rippled-upstream/build/gcc.debug/rippled -q --conf ~/.config/ripple/rippled-uni.cfg account_lines ${account} | egrep 'balance|currency|ledger_current_index' \
-  && ~/dev/rippled-upstream/build/gcc.debug/rippled -q --conf ~/.config/ripple/rippled-uni.cfg account_info ${account} | grep 'Balance'
+# echo $account
+~/dev/rippled-upstream/build/gcc.debug/rippled -q \
+  --conf ~/.config/ripple/rippled-uni.cfg account_lines ${account} validated \
+    | egrep 'balance|currency|ledger_current_index|error' \
+  && ~/dev/rippled-upstream/build/gcc.debug/rippled -q \
+    --conf ~/.config/ripple/rippled-uni.cfg account_info ${account} validated \
+      | grep 'Balance|error'
