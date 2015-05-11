@@ -14,8 +14,8 @@ fi
 account=${1:-${defaultaccount}}
 # echo $account
 ~/dev/rippled-upstream/build/gcc.debug/rippled -q \
-  --conf ~/.config/ripple/rippled-uni.cfg account_lines ${account} validated \
-    | egrep 'balance|currency|ledger_current_index|error' \
+  --conf ~/.config/ripple/rippled-uni.cfg account_lines ${account} "" \
+    validated | egrep 'balance|currency|index|error' \
   && ~/dev/rippled-upstream/build/gcc.debug/rippled -q \
     --conf ~/.config/ripple/rippled-uni.cfg account_info ${account} validated \
       | egrep 'Balance|error'
