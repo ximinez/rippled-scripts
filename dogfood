@@ -1,5 +1,6 @@
 #!/bin/bash
 
 mv -vi ~/rippled/debug.log{,.$(date '+%s')}
-time ./Builds/Test.py --all -- -j 6 && \
-gnome-terminal -x ./build/gcc.debug/rippled --conf ~/.config/ripple/rippled-validator.cfg --net
+time ./Builds/Test.py --all -- -j 7 && \
+  gnome-terminal -x ./build/gcc.debug/rippled \
+    --conf ~/.config/ripple/rippled-validator.cfg --net
