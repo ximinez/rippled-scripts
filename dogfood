@@ -1,6 +1,14 @@
 #!/bin/bash
 
+gdb=""
+gdbextra=""
+if [ "$1" == "debug" ]
+then
+  gdb="gdb -ex run --args"
+  gdbextra="--fg"
+fi
+
 mv -vi ~/rippled/debug.log{,.$(date '+%s')}
 time ./Builds/Test.py --all -- -j 7 && \
-  gnome-terminal -x ./build/gcc.debug/rippled \
-    --conf ~/.config/ripple/rippled-validator.cfg --net
+  gnome-terminal -x ${gdb} ./build/gcc.debug/rippled \
+    --conf ~/.config/ripple/rippled-validator.cfg --net ${gdbextra}
