@@ -4,7 +4,7 @@ gdb=""
 gdbextra=""
 if [ "$1" == "debug" ]
 then
-  gdb="gdb -ex run --args"
+  gdb="gdb -ex run -ex quit --args"
   gdbextra="--fg"
 fi
 
