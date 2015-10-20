@@ -11,11 +11,15 @@ then
 else
   defaultaccount=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
 fi
-account=${1:-${defaultaccount}}
+
+RIPPLED=${1:-~/dev/rippled-upstream/build/gcc.debug/rippled}
+RPC_PORT=${2:-5015}
+account=${3:-${defaultaccount}}
+
 # echo $account
-~/dev/rippled-upstream/build/gcc.debug/rippled -q \
-  --conf ~/.config/ripple/rippled-validator.cfg account_lines ${account} "" \
+${RIPPLED} -q \
+  --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_lines ${account} "" \
     validated | egrep 'balance|currency|index|error' \
-  && ~/dev/rippled-upstream/build/gcc.debug/rippled -q \
-    --conf ~/.config/ripple/rippled-validator.cfg account_info ${account} validated \
+  && ${RIPPLED} -q \
+    --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_info ${account} validated \
       | egrep 'Balance|error'
