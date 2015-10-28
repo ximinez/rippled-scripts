@@ -22,4 +22,4 @@ ${RIPPLED} -q \
     validated | egrep 'balance|currency|index|error' \
   && ${RIPPLED} -q \
     --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_info ${account} validated \
-      | egrep 'Balance|error'
+      | egrep 'Balance|PreviousTxnLgrSeq|error'
