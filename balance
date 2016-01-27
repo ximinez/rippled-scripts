@@ -19,7 +19,13 @@ account=${3:-${defaultaccount}}
 # echo $account
 ${RIPPLED} -q \
   --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_lines ${account} "" \
-    validated | egrep 'balance|currency|index|error' \
+    validated | egrep 'balance|currency|account|index|error' \
+    | awk '{ sub(/^ */, ""); gsub(/[,"]/, "", $3); } 
+      ( /account/ ) { account = $3; }
+      ( /balance/ ) { balance = $3; }
+      (/currency/ && account !~ /(rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6)/ && !/0158415500000000C1F76FF6ECB0BAC600000000/ ) { print $3 " / " account " : " balance; }
+      ( balance == "" && account == "" ) { print; }
+      ( /currency/ ) { balance=""; account=""; }' \
   && ${RIPPLED} -q \
     --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_info ${account} validated \
       | egrep 'Balance|PreviousTxnLgrSeq|error'
