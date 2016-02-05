@@ -1,0 +1,31 @@
+#! /bin/bash
+
+if test ${#@} -ne 1
+then
+  echo "Usage: $(basename $0) filename"
+  exit 1
+fi
+
+file="$1"
+shift
+
+size() { stat --format="%s" "${file}"; }
+
+until size > /dev/null
+do
+  sleep 1
+done
+
+oldsize=0
+newsize=$(size)
+while test $newsize -ge $oldsize
+do
+  if test $newsize -gt $oldsize
+  then
+    date
+    ls -l "${file}"
+    sleep 1
+  fi
+  oldsize=$newsize
+  newsize=$(size)
+done
