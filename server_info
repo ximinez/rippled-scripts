@@ -1,6 +1,6 @@
 #!/bin/bash
 
 RIPPLED=${1:-~/dev/rippled-upstream/build/gcc.debug/rippled}
-RPC_PORT=${2:-5015}
+RPC_PORT=${2:-51235}
 
 ${RIPPLED} -q --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} server_info | tail -50

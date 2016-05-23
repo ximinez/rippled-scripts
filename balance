@@ -13,8 +13,15 @@ else
 fi
 
 RIPPLED=${1:-~/dev/rippled-upstream/build/gcc.debug/rippled}
-RPC_PORT=${2:-5015}
+RPC_PORT=${2:-51235}
 account=${3:-${defaultaccount}}
+
+name()
+{
+  curl https://data.ripple.com/v2/gateways/$1 2>/dev/null | \
+    json_pp | \
+      awk '(/"name"/) { print $3; }'
+}
 
 # echo $account
 ${RIPPLED} -q \
