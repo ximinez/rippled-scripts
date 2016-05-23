@@ -9,6 +9,6 @@ then
 fi
 
 mv -vi ~/rippled/debug.log{,.$(date '+%s')}
-time ./Builds/Test.py -v --all -- -j 8 && \
+time ./Builds/Test.py -v -- -j 8 debug release && \
   gnome-terminal -x ${gdb} ./build/gcc.debug/rippled \
     --conf ~/.config/ripple/rippled-validator.cfg --net ${gdbextra}
