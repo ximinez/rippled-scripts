@@ -4,7 +4,13 @@ gdb=""
 gdbextra=""
 if [ "$1" == "debug" ]
 then
-  gdb="gdb -ex run -ex quit --args"
+  shift
+  gdb="gdb "
+  if [ "${#@}" ]
+  then
+    gdb="${gdb} ${@} "
+  fi
+  gdb="${gdb} -ex run -ex quit --args"
   gdbextra="--fg"
 fi
 
