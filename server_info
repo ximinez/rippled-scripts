@@ -3,4 +3,4 @@
 RIPPLED=${1:-~/dev/rippled-upstream/build/gcc.debug/rippled}
 RPC_PORT=${2:-51235}
 
-${RIPPLED} -q --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} server_info | tail -50
+${RIPPLED} -q --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} server_info | jq 'del(.result.info.load) | del(.result.info.state_accounting)'
