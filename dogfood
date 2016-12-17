@@ -2,19 +2,76 @@
 
 gdb=""
 gdbextra=""
-if [ "$1" == "debug" ]
-then
-  shift
-  gdb="gdb "
-  if [ "${#@}" ]
+fast=0
+while [[ ${#@} > 0 ]]
+do
+  if [ "$1" == "fast" ]
   then
-    gdb="${gdb} ${@} "
+    shift
+    fast=1
+  elif [ "$1" == "debug" ]
+  then
+    shift
+    gdb="gdb -q --tui "
+    gdb="${gdb} -ex run -ex quit --args"
+    gdbextra="--fg"
+  elif [[ ${#gdb} > 0 && "$1" == "--" ]]
+  then
+    shift
+    if [ "${#@}" ]
+    then
+      gdb="${gdb} ${@} "
+      shift "${#@}"
+    fi
+  else
+    echo "Unknown option: $1" 1>&2
+    exit 127
   fi
-  gdb="${gdb} -ex run -ex quit --args"
-  gdbextra="--fg"
-fi
+done
 
 mv -vi ~/rippled/debug.log{,.$(date '+%s')}
-time ./Builds/Test.py -v -- -j 8 debug release && \
-  gnome-terminal -x ${gdb} ./build/gcc.debug/rippled \
-    --conf ~/.config/ripple/rippled-validator.cfg --net ${gdbextra}
+cmake_dirs=$(echo ./build/cmake/{*.debug,gcc.release})
+echo Dirs: ${cmake_dirs}
+cmake_targets="rippled rippled_classic"
+echo Targets: ${cmake_targets}
+time for dir in ${cmake_dirs}
+do
+  for target in ${cmake_targets}
+  do
+    echo Building $target in $dir
+    cmake --build $dir --target $target -- -j8 || exit 1
+  done
+done || exit 1
+if [[ ${fast} == 0 ]]
+then
+  time for dir in ${cmake_dirs}
+  do
+    for target in ${cmake_targets}
+    do
+      echo Unit tests on $target in $dir
+      $dir/$target --unittest || exit 1
+      npm test --rippled=$dir/$target || exit 1
+    done
+  done || exit 1
+fi
+# cmake --build ./build/cmake/gcc.debug -- -j8 && \
+# cmake --build ./build/cmake/clang.debug -- -j8 && \
+# cmake --build ./build/cmake/clang.release -- -j8 && \
+# cmake --build ./build/cmake/gcc.release/ --target rippled_classic -- -j8 && \
+# ./build/cmake/gcc.debug/rippled --unittest && \
+# ./build/cmake/clang.debug/rippled --unittest && \
+# ./build/cmake/clang.release/rippled --unittest && \
+# ./build/cmake/gcc.release/rippled_classic --unittest && \
+sconstarget="debug gcc.release gcc.release.nounity"
+if [[ ${fast} != 0 ]]
+then
+  time scons -j 8 --assert \
+    $sconstarget \
+      || exit 1
+else
+  time ./Builds/Test.py -v -- -j 8 --assert \
+    $sconstarget \
+      || exit 1
+fi
+gnome-terminal --geometry=80x40 -x ${gdb} ./build/gcc.debug/rippled \
+  --conf ~/.config/ripple/rippled-validator.cfg --net ${gdbextra}
