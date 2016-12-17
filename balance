@@ -12,9 +12,10 @@ else
   defaultaccount=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
 fi
 
-RIPPLED=${1:-~/dev/rippled-upstream/build/gcc.debug/rippled}
-RPC_PORT=${2:-51235}
-account=${3:-${defaultaccount}}
+RIPPLED=${1:-$( dirname $0 )/rippled}
+RPC_IP=${2:-127.0.0.1}
+RPC_PORT=${3:-51235}
+account=${4:-${defaultaccount}}
 
 name()
 {
@@ -25,7 +26,7 @@ name()
 
 # echo $account
 ${RIPPLED} -q \
-  --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_lines ${account} "" \
+  --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_lines ${account} "" \
     validated | egrep 'balance|currency|account|index|error' \
     | awk '{ sub(/^ */, ""); gsub(/[,"]/, "", $3); } 
       ( /account/ ) { account = $3; }
@@ -34,5 +35,5 @@ ${RIPPLED} -q \
       ( balance == "" && account == "" ) { print; }
       ( /currency/ ) { balance=""; account=""; }' \
   && ${RIPPLED} -q \
-    --rpc_ip=127.0.0.1 --rpc_port=${RPC_PORT} account_info ${account} validated \
+    --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_info ${account} validated \
       | egrep 'Balance|PreviousTxnLgrSeq|error'
