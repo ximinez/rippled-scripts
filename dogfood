@@ -4,7 +4,6 @@ set -e
 
 gdb=""
 gdbextra=""
-cmakeextra=""
 clean=0
 fast=0
 while [[ ${#@} > 0 ]]
@@ -21,7 +20,6 @@ do
   elif [[ "$1" == "clean" ]]
   then
     shift
-    cmakeextra="${cmakeextra} --clean-first"
     clean=1
   elif [[ ${#gdb} > 0 && "$1" == "--" ]]
   then
@@ -50,10 +48,14 @@ echo Targets: ${cmake_targets}
 time (
   for dir in ${cmake_dirs}
   do
+    if [[ ${clean} != 0 ]]
+    then
+      cmake --build $dir --target clean || exit 1
+    fi
     for target in ${cmake_targets}
     do
       echo Building $target in $dir
-      cmake --build $dir --target $target ${cmakeextra} -- -j8 || exit 1
+      cmake --build $dir --target $target -- -j8 || exit 1
     done
   done || exit 1
   if [[ ${fast} == 0 ]]
