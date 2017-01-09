@@ -46,12 +46,18 @@ echo Dirs: ${cmake_dirs}
 cmake_targets="rippled rippled_classic"
 echo Targets: ${cmake_targets}
 time (
+  if [[ ${clean} != 0 ]]
+  then
+    for dir in ${cmake_dirs}
+    do
+      cmake --build $dir --target clean || exit 1
+    done
+
+    # This is ugly and dangerous, but that's scons for ya.
+    rm -rf build/{gcc,clang,msvc,proto}*
+  fi
   for dir in ${cmake_dirs}
   do
-    if [[ ${clean} != 0 ]]
-    then
-      cmake --build $dir --target clean || exit 1
-    fi
     for target in ${cmake_targets}
     do
       echo Building $target in $dir
@@ -79,11 +85,6 @@ time (
   # ./build/cmake/clang.release/rippled --unittest && \
   # ./build/cmake/gcc.release/rippled_classic --unittest && \
   sconstarget="debug gcc.release gcc.release.nounity"
-  if [[ ${clean} != 0 ]]
-  then
-    # This is ugly and dangerous, but that's scons for ya.
-    rm -rf build/{gcc,clang,msvc,proto}*
-  fi
   if [[ ${fast} != 0 ]]
   then
     scons -j 8 --assert \
