@@ -72,7 +72,10 @@ time (
       do
         echo Unit tests on $target in $dir
         $dir/$target --unittest || exit 1
-        npm test --rippled=$dir/$target || exit 1
+        if [[ -d node_modules ]]
+        then
+          npm test --rippled=$dir/$target || exit 1
+        fi
       done
     done || exit 1
   fi
