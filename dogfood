@@ -17,6 +17,10 @@ do
     shift
     gdb="gdb -q --tui "
     gdbextra="--fg"
+  elif [[ "$1" == "test" ]]
+  then
+    shift
+    gdb=": "
   elif [[ "$1" == "clean" ]]
   then
     shift
