@@ -20,7 +20,7 @@ do
   elif [[ "$1" == "test" ]]
   then
     shift
-    gdb=": "
+    gdb="echo "
   elif [[ "$1" == "clean" ]]
   then
     shift
@@ -45,10 +45,14 @@ then
 fi
 
 mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
-cmake_dirs=$(echo ./build/cmake/{*.debug,gcc.release})
+
+cmake_dirs=$(echo ./build/cmake/*)
 echo Dirs: ${cmake_dirs}
 cmake_targets="rippled rippled_classic"
 echo Targets: ${cmake_targets}
+sconstarget="debug release"
+echo Scons targets: ${sconstarget}
+
 time (
   if [[ ${clean} != 0 ]]
   then
@@ -83,15 +87,6 @@ time (
       done
     done || exit 1
   fi
-  # cmake --build ./build/cmake/gcc.debug -- -j8 && \
-  # cmake --build ./build/cmake/clang.debug -- -j8 && \
-  # cmake --build ./build/cmake/clang.release -- -j8 && \
-  # cmake --build ./build/cmake/gcc.release/ --target rippled_classic -- -j8 && \
-  # ./build/cmake/gcc.debug/rippled --unittest && \
-  # ./build/cmake/clang.debug/rippled --unittest && \
-  # ./build/cmake/clang.release/rippled --unittest && \
-  # ./build/cmake/gcc.release/rippled_classic --unittest && \
-  sconstarget="debug gcc.release gcc.release.nounity"
   if [[ ${fast} != 0 ]]
   then
     scons -j 8 --assert \
