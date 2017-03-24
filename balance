@@ -36,4 +36,7 @@ ${RIPPLED} -q \
       ( /currency/ ) { balance=""; account=""; }' \
   && ${RIPPLED} -q \
     --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_info ${account} validated \
-      | egrep 'Balance|PreviousTxnLgrSeq|error'
+      | jq -j 'if .error then .
+        else { "Balance" : .result.account_data.Balance,
+        "PreviousTxnLedgerSeq" : .result.account_data.PreviousTxnLgrSeq }
+        end'
