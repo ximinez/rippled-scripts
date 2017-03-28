@@ -27,13 +27,15 @@ name()
 # echo $account
 ${RIPPLED} -q \
   --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_lines ${account} "" \
-    validated | egrep 'balance|currency|account|index|error' \
+    validated | egrep 'balance|currency|account|index|limit|quality|error' \
     | awk '{ sub(/^ */, ""); gsub(/[,"]/, "", $3); } 
       ( /account/ ) { account = $3; }
       ( /balance/ ) { balance = $3; }
-      (/currency/ && account !~ /(rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6)/ && !/0158415500000000C1F76FF6ECB0BAC600000000/ ) { print $3 " / " account " : " balance; }
+      ( /limit/ && $3 > limit ) { limit = $3; }
+      ( /currency/ ) { currency = $3; }
+      (/quality_out/ && account !~ /(rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6)/ && currency !~ /0158415500000000C1F76FF6ECB0BAC600000000/ ) { print currency " / " account " : " balance " / " limit; }
       ( balance == "" && account == "" ) { print; }
-      ( /currency/ ) { balance=""; account=""; }' \
+      ( /quality_out/ ) { balance=""; account=""; limit=0; }' \
   && ${RIPPLED} -q \
     --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_info ${account} validated \
       | jq -j 'if .error then .
