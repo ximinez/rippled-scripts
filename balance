@@ -28,12 +28,38 @@ name()
 ${RIPPLED} -q \
   --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_lines ${account} "" \
     validated | egrep 'balance|currency|account|index|limit|quality|error' \
-    | awk '{ sub(/^ */, ""); gsub(/[,"]/, "", $3); } 
+    | awk '
+      function gatewayname(c)
+      {
+        switch(c)
+        {
+          case "razqQKzJRdB4UxFPWf5NEpEG3WMkmwgcXA":
+            return "RippleChina";
+          case "r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S":
+            return "RippleUnion";
+          case "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B" :
+            return "Bitstamp   ";
+          case "rrh7rf1gV2pXAoqA8oYbpHd8TKv5ZQeo67" :
+            return "GBI        ";
+          case "rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq" :
+            return "Gatehub    ";
+          case "rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6" :
+            return "Ripple Trade Japan";
+          case "r94s8px6kSw1uZ1MV98dhSRTvc6VMPoPcN" :
+            return "tokyojpy   ";
+          case "rG6FZ31hDHN1K5Dkbma3PSB5uVCuVVRzfn" :
+            return "Bitso      ";
+          case "rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q" :
+            return "SnapSwap   ";
+          default: return c;
+        }
+      }
+      { sub(/^ */, ""); gsub(/[,"]/, "", $3); }
       ( /account/ ) { account = $3; }
       ( /balance/ ) { balance = $3; }
       ( /limit/ && $3 > limit ) { limit = $3; }
       ( /currency/ ) { currency = $3; }
-      (/quality_out/ && account !~ /(rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6)/ && currency !~ /0158415500000000C1F76FF6ECB0BAC600000000/ ) { print currency " / " account " : " balance " / " limit; }
+      (/quality_out/ && account !~ /(rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6)/ && currency !~ /0158415500000000C1F76FF6ECB0BAC600000000/ ) { print currency " / " gatewayname(account) " : " balance " / " limit; }
       ( balance == "" && account == "" ) { print; }
       ( /quality_out/ ) { balance=""; account=""; limit=0; }' \
   && ${RIPPLED} -q \
