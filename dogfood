@@ -68,6 +68,18 @@ time (
   do
     for target in ${cmake_targets}
     do
+      cc=$( basename ${dir} | cut -d. -f1 )
+      echo $cc
+      if ! grep COMPILER:FILEPATH ${dir}/CMakeCache.txt | grep $cc
+      then
+        echo CMake found wrong compiler
+        grep COMPILER:FILEPATH ${dir}/CMakeCache.txt
+        echo '        ^          '
+        echo '       ^ ^         '
+        echo '      ^   ^        '
+        echo '^^^^^^^^^^^^^^^^^^^'
+        exit 1
+      fi
       echo Building $target in $dir
       cmake --build $dir --target $target -- -j8 || exit 1
     done
@@ -79,7 +91,7 @@ time (
       for target in ${cmake_targets}
       do
         echo Unit tests on $target in $dir
-        $dir/$target --unittest || exit 1
+        $dir/$target -q --unittest || exit 1
         if [[ -d node_modules ]]
         then
           npm test --rippled=$dir/$target || exit 1
@@ -93,7 +105,7 @@ time (
       $sconstarget \
         || exit 1
   else
-    ./Builds/Test.py -v -- -j 8 --assert \
+    ./Builds/Test.py -q -v -- -j 8 --assert \
       $sconstarget \
         || exit 1
   fi
