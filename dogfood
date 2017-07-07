@@ -6,6 +6,7 @@ gdb=""
 gdbextra=""
 clean=0
 fast=0
+test=0
 while [[ ${#@} > 0 ]]
 do
   if [[ "$1" == "fast" ]]
@@ -20,7 +21,7 @@ do
   elif [[ "$1" == "test" ]]
   then
     shift
-    gdb="echo "
+    test=1
   elif [[ "$1" == "clean" ]]
   then
     shift
@@ -43,8 +44,6 @@ if [[ ${#gdb} > 0 ]]
 then
   gdb="${gdb} -ex run -ex quit --args"
 fi
-
-mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
 
 cmake_dirs=$(echo ./build/cmake/*)
 echo Dirs: ${cmake_dirs}
@@ -110,6 +109,29 @@ time (
         || exit 1
   fi
 ) || exit 1
+
+if [[ ${test} != 0 ]]
+then
+  exit 0
+fi
+
 set -x
-gnome-terminal --geometry=80x30 -x ${gdb} ./build/cmake/gcc.debug/rippled \
-  --conf ~/.config/ripple/rippled-validator.cfg --net ${gdbextra}
+
+if [ -e ~/rippled/debug.log ]
+then
+  mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
+fi
+gnome-terminal --geometry=80x30 -x tmux new-session -A -s rippled -x 80 -y 30 sleep 600
+for dir in rippled # rippled-altnet
+do
+  if [ -e ~/${dir}/debug.log ]
+  then
+    mv -vi ~/${dir}/debug.log{,.$(date '+%s')} || true
+  fi
+  if [ -e ~/.config/ripple/${dir}.cfg ]
+  then
+    tmux new-window -t rippled "${gdb} \
+      ./build/cmake/gcc.debug/rippled \
+      --conf ~/.config/ripple/${dir}.cfg --net ${gdbextra}"
+  fi
+done
