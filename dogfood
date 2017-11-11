@@ -121,7 +121,7 @@ if [ -e ~/rippled/debug.log ]
 then
   mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
 fi
-gnome-terminal --geometry=80x30 -x tmux new-session -A -s rippled -x 80 -y 30 sleep 600
+gnome-terminal --geometry=80x30 -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
 for dir in rippled # rippled-altnet
 do
   if [ -e ~/${dir}/debug.log ]
