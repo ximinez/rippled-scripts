@@ -2,7 +2,7 @@
 
 RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
-RPC_PORT=${3:-51235}
+RPC_PORT=${3:-5015}
 PEER_PORT=${4:-51235}
 
 echo $RIPPLED $RPC_PORT $PEER_PORT
