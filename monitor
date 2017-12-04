@@ -13,5 +13,6 @@ gnome-terminal --tab -t server_info -e "watch -c -d  -n 0.2 server_info ${RIPPLE
   --tab -t get_counts -e "watch -c -d -n 1 ${RIPPLED}  --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} get_counts" \
   --tab -t crawl -e "watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
   --tab -t top -e "top" \
+  --tab -t bandwidth -e "bwm-ng -o csv -c 0 -t 10000 | tee -a ~/rippled/bandwidth.csv" \
   --tab -t fee -e "watch -c -d -n 0.1 ${RIPPLED}  --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} fee"
 
