@@ -1,0 +1,70 @@
+#!/bin/bash
+
+ssh_host=professornormal
+rpc_private=5015
+
+rpc_ip=192.168.42.100
+rpc_port=51235
+
+accountfile="$( dirname $0 )/ripple-account.txt"
+if [ -r ${accountfile} ]
+then
+  account=$(cat ${accountfile})
+else
+  account=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
+fi
+
+can_delete()
+{
+  ssh ${ssh_host} ~/bin/rippled -q --rpc_port=${rpc_private} can_delete $1 | \
+    jq '.result.can_delete'
+}
+
+until last=$( can_delete )
+do
+  echo Can not determine starting point. Will retry.
+  sleep 60
+done
+
+echo Last checked ledger: $last
+next=$(( ${last} + 1 ))
+
+while true
+do
+  echo
+  echo Checking starting with ${next}
+  txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip} --rpc_port=${rpc_port} account_tx \
+    -- ${account} ${next} -1 )
+
+  status=$(echo ${txs} | jq '.result.status' )
+  if [[ ${status} != '"success"' ]]
+  then
+    echo account_tx status: ${status}
+    echo ${txs} | jq '[ .result.error, .result.error_message ]'
+    sleep 60
+    continue
+  fi
+
+  min=$( echo ${txs} | jq '.result.ledger_index_min' )
+  max=$( echo ${txs} | jq '.result.ledger_index_max' )
+  if [[ ${min} > ${next} ]]
+  then
+    echo rippled only has ledgers ${min}-${max}. Wait for backfill.
+    sleep 60
+    continue
+  fi
+
+  count=$( echo ${txs} | jq '.result.transactions | length' )
+  echo Found ${count} txs in ${min}-${max}
+  if [[ ${count} > 0 ]]
+  then
+    echo ${txs} | jq > transactions.${min}-${max}.txt
+  fi
+  can_delete ${max}
+  next=$(( ${max} + 1 ))
+  echo Updated can_delete to $( can_delete )
+
+  # Delay enough time for a new ledger to close.
+  sleep 6
+done
+
