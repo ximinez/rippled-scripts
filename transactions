@@ -49,7 +49,7 @@ do
   max=$( echo ${txs} | jq '.result.ledger_index_max' )
   if [[ ${min} > ${next} ]]
   then
-    echo rippled only has ledgers ${min}-${max}. Wait for backfill.
+    echo rippled only has ${min}-${max}. Wait for backfill $(( ${min} - ${last} )) ledgers.
     sleep 60
     continue
   fi
