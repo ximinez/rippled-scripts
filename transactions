@@ -80,6 +80,6 @@ do
   echo Updated can_delete to $( can_delete )
 
   # Delay enough time for a new ledger to close.
-  sleep 6
+  sleep 10
 done
 
