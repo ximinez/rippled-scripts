@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -e
+
 ssh_host=professornormal
 rpc_private=5015
 
@@ -16,13 +18,20 @@ fi
 
 can_delete()
 {
-  ssh ${ssh_host} ~/bin/rippled -q --rpc_port=${rpc_private} can_delete $1 | \
-    jq '.result.can_delete'
+  set -o pipefail
+  if [[ ${ssh_host} == $( hostname ) ]]
+  then
+    ~/bin/rippled -q --rpc_port=${rpc_private} can_delete $* | \
+      jq '.result.can_delete'
+  else
+    ssh ${ssh_host} ~/bin/rippled -q --rpc_port=${rpc_private} can_delete $1 | \
+      jq '.result.can_delete'
+  fi
 }
 
-until last=$( can_delete )
+until last=$( can_delete ) && [[ ${last} != "null" ]]
 do
-  echo Can not determine starting point. Will retry.
+  echo "Can not determine starting point (${last}). Will retry."
   sleep 60
 done
 
@@ -32,12 +41,18 @@ next=$(( ${last} + 1 ))
 while true
 do
   echo
+  date
   echo Checking starting with ${next}
-  txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip} --rpc_port=${rpc_port} account_tx \
+  time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip} --rpc_port=${rpc_port} account_tx \
     -- ${account} ${next} -1 )
 
+  error=$(echo ${txs} | jq '.error' )
   status=$(echo ${txs} | jq '.result.status' )
-  if [[ ${status} != '"success"' ]]
+  if [[ ${error} != "null" ]]
+  then
+    echo Error: $error
+    echo ${txs} | jq '[ .error_message, .error_what ]'
+  elif [[ ${status} != '"success"' ]]
   then
     echo account_tx status: ${status}
     echo ${txs} | jq '[ .result.error, .result.error_message ]'
@@ -49,7 +64,7 @@ do
   max=$( echo ${txs} | jq '.result.ledger_index_max' )
   if [[ ${min} > ${next} ]]
   then
-    echo rippled only has ${min}-${max}. Wait for backfill $(( ${min} - ${last} )) ledgers.
+    echo rippled only has ${min}-${max}. Wait for backfill $(( ${min} - ${next} )) ledgers.
     sleep 60
     continue
   fi
@@ -58,7 +73,7 @@ do
   echo Found ${count} txs in ${min}-${max}
   if [[ ${count} > 0 ]]
   then
-    echo ${txs} | jq > transactions.${min}-${max}.txt
+    echo "${txs}" > transactions.${min}-${max}.txt
   fi
   can_delete ${max}
   next=$(( ${max} + 1 ))
