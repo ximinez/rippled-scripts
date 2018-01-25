@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+# set -e
 
 ssh_host=professornormal
 rpc_private=5015
@@ -64,8 +64,9 @@ do
   max=$( echo ${txs} | jq '.result.ledger_index_max' )
   if [[ ${min} > ${next} ]]
   then
-    echo rippled only has ${min}-${max}. Wait for backfill $(( ${min} - ${next} )) ledgers.
-    sleep 60
+    backfill=$(( ${min} - ${next} ))
+    echo rippled only has ${min}-${max}. Wait for backfill ${backfill} ledgers.
+    sleep $(( $backfill / 10 ))
     continue
   fi
 
@@ -80,6 +81,6 @@ do
   echo Updated can_delete to $( can_delete )
 
   # Delay enough time for a new ledger to close.
-  sleep 10
+  sleep 30
 done
 
