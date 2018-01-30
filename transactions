@@ -52,6 +52,8 @@ do
   then
     echo Error: $error
     echo ${txs} | jq '[ .error_message, .error_what ]'
+    sleep 60
+    continue
   elif [[ ${status} != '"success"' ]]
   then
     echo account_tx status: ${status}
