@@ -21,14 +21,14 @@ name()
 {
   curl https://data.ripple.com/v2/gateways/$1 2>/dev/null | \
     json_pp | \
-      awk '(/"name"/) { print $3; }'
+      gawk '(/"name"/) { print $3; }'
 }
 
 # echo $account
 ${RIPPLED} -q \
   --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_lines ${account} "" \
     validated | egrep 'balance|currency|account|index|limit|quality|error' \
-    | awk '
+    | gawk '
       function gatewayname(c)
       {
         switch(c)
@@ -51,6 +51,11 @@ ${RIPPLED} -q \
             return "Bitso      ";
           case "rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q" :
             return "SnapSwap   ";
+	  case "rcA8X3TVMST1n3CJeAdGk1RdRCHii7N2h"  :
+	  case "rchGBxcD1A1C2tdxF6papQYZ8kjRKMYcL"  :
+          case "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" :
+          case "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP"  :
+	    return "Gatehub Fifth";
           default: return c;
         }
       }
@@ -59,7 +64,7 @@ ${RIPPLED} -q \
       ( /balance/ ) { balance = $3; }
       ( /limit/ && $3 > limit ) { limit = $3; }
       ( /currency/ ) { currency = $3; }
-      (/quality_out/ && account !~ /(rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6)/ && currency !~ /0158415500000000C1F76FF6ECB0BAC600000000/ ) { print currency " / " gatewayname(account) " : " balance " / " limit; }
+      (/quality_out/ && balance != 0 ) { print currency " / " gatewayname(account) " : " balance " / " limit; }
       ( balance == "" && account == "" ) { print; }
       ( /quality_out/ ) { balance=""; account=""; limit=0; }' \
   && ${RIPPLED} -q \
