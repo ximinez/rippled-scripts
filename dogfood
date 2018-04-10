@@ -1,12 +1,12 @@
 #!/bin/bash
 
 set -e
+# set -x
 
 gdb=""
 gdbextra=""
 clean=0
 fast=0
-cmake=0
 test=0
 while [[ ${#@} > 0 ]]
 do
@@ -14,10 +14,6 @@ do
   then
     shift
     fast=1
-  elif [[ "$1" == "cmake" ]]
-  then
-    shift
-    cmake=1
   elif [[ "$1" == "debug" ]]
   then
     shift
@@ -55,8 +51,6 @@ cmake_dirs=$(\ls ${cmake_prefix})
 echo Dirs: ${cmake_dirs}
 cmake_targets="rippled rippled_classic"
 echo Targets: ${cmake_targets}
-sconstarget="debug release"
-echo Scons targets: ${sconstarget}
 
 time (
   if [[ ${clean} != 0 ]]
@@ -66,9 +60,6 @@ time (
       dir=${cmake_prefix}${dir}
       cmake --build $dir --target clean || exit 1
     done
-
-    # This is ugly and dangerous, but that's scons for ya.
-    rm -rf build/{gcc,clang,msvc,proto}*
   fi
 
   # Determine if parallel unit tests are enabled.
@@ -101,20 +92,6 @@ time (
       ${parallel_test} -- -j8 || exit 1
   fi
 
-  # scons
-  if [[ ${cmake} == 0 ]]
-  then
-    if [[ ${fast} != 0 ]]
-    then
-      scons -j 8 --assert \
-        $sconstarget \
-          || exit 1
-    else
-      ./Builds/Test.py -q -v ${parallel_test} -- -j 8 --assert \
-        $sconstarget \
-          || exit 1
-    fi
-  fi
 ) || exit 1
 
 if [[ ${test} != 0 ]]
