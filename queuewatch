@@ -1,0 +1,29 @@
+#!/bin/bash
+
+file=1
+
+while [ -e temp${file}.txt ]
+do
+  echo $file exists
+  file=$(( $file + 1 ))
+done
+lastledger=0
+while true
+do
+  fee=$( ~/bin/rippled -q fee )
+  ledger=$( echo ${fee} | jq '.result.ledger_current_index | tonumber' )
+  expected=$( echo ${fee} | jq '.result.expected_ledger_size | tonumber' )
+  current=$( echo ${fee} | jq '.result.current_ledger_size | tonumber' )
+  queue=$( echo ${fee} | jq '.result.current_queue_size | tonumber' )
+
+  echo Ledger: $ledger, Expected: $expected, Current: $current, Queue: $queue, File: $file
+  if [[ $ledger -ne $lastledger && $current -le $expected && $queue -ne 0 ]]
+  then
+    echo "Got one! Writing to temp${file}.txt"
+    ~/bin/rippled -q  json ledger '{"queue": true, "ledger_index":"current", "expand" : true, "transactions" : true }' >> temp${file}.txt
+    # file=$(( $file + 1 ))
+    lastledger=${ledger}
+  fi
+
+  sleep 1
+done
