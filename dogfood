@@ -49,7 +49,7 @@ fi
 cmake_prefix=./build/cmake/
 cmake_dirs=$(\ls ${cmake_prefix})
 echo Dirs: ${cmake_dirs}
-cmake_targets="rippled rippled_classic"
+cmake_targets="rippled"
 echo Targets: ${cmake_targets}
 
 time (
