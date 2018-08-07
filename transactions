@@ -21,10 +21,10 @@ can_delete()
   set -o pipefail
   if [[ ${ssh_host} == $( hostname ) ]]
   then
-    ~/bin/rippled -q --rpc_port=${rpc_private} can_delete $* | \
+    ~/bin/rippled -q --rpc_ip=127.0.0.1:${rpc_private} can_delete $* | \
       jq '.result.can_delete'
   else
-    ssh ${ssh_host} ~/bin/rippled -q --rpc_port=${rpc_private} can_delete $1 | \
+    ssh ${ssh_host} ~/bin/rippled -q --rpc_port=127.0.0.1:${rpc_private} can_delete $1 | \
       jq '.result.can_delete'
   fi
 }
@@ -43,7 +43,7 @@ do
   echo
   date
   echo Checking starting with ${next}
-  time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip} --rpc_port=${rpc_port} account_tx \
+  time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip}:${rpc_port} account_tx \
     -- ${account} ${next} -1 )
 
   error=$(echo ${txs} | jq '.error' )

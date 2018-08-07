@@ -4,4 +4,4 @@ RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
 RPC_PORT=${3:-51235}
 
-${RIPPLED} -q --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} server_info | jq 'del(.result.info.load) | del(.result.info.state_accounting)'
+${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} server_info | jq 'del(.result.info.load) | del(.result.info.state_accounting)'

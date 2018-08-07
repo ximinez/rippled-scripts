@@ -26,7 +26,7 @@ name()
 
 # echo $account
 ${RIPPLED} -q \
-  --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_lines ${account} "" \
+  --rpc_ip=${RPC_IP}:${RPC_PORT} account_lines ${account} "" \
     validated | egrep 'balance|currency|account|index|limit|quality|error' \
     | gawk '
       function gatewayname(c)
@@ -68,7 +68,7 @@ ${RIPPLED} -q \
       ( balance == "" && account == "" ) { print; }
       ( /quality_out/ ) { balance=""; account=""; limit=0; }' \
   && ${RIPPLED} -q \
-    --rpc_ip=${RPC_IP} --rpc_port=${RPC_PORT} account_info ${account} validated \
+    --rpc_ip=${RPC_IP}:${RPC_PORT} account_info ${account} validated \
       | jq -j 'if .error then .
         else { "Balance" : .result.account_data.Balance,
         "PreviousTxnLedgerSeq" : .result.account_data.PreviousTxnLgrSeq }
