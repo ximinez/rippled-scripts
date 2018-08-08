@@ -106,16 +106,20 @@ then
   mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
 fi
 gnome-terminal --geometry=80x30 -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
-for dir in rippled # rippled-altnet
+for network in rippled # rippled-altnet
 do
-  if [ -e ~/${dir}/debug.log ]
+  if [ -e ~/${network}/debug.log ]
   then
-    mv -vi ~/${dir}/debug.log{,.$(date '+%s')} || true
+    mv -vi ~/${network}/debug.log{,.$(date '+%s')} || true
   fi
-  if [ -e ~/.config/ripple/${dir}.cfg ]
+  if [ -e ~/.config/ripple/${network}.cfg ]
   then
-    tmux new-window -t rippled "${gdb} \
-      ./build/cmake/gcc.debug/rippled \
-      --conf ~/.config/ripple/${dir}.cfg --net ${gdbextra}"
+    for rundir in ${cmake_dirs}
+    do
+      tmux new-window -t rippled "${gdb} \
+        ${cmake_prefix}${rundir}/rippled \
+        --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
+      break
+    done
   fi
 done
