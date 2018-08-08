@@ -66,30 +66,37 @@ time (
   parallel_test=''
   for dir in ${cmake_dirs}
   do
+    set -x
     dir=${cmake_prefix}${dir}
     cmake --build $dir -- -j8 || exit 1
     parallel_test=$( $dir/rippled --help |& grep -q unittest-jobs && \
       echo '--testjobs=8' )
+    set +x
     # There's probably a smarter way to just get the first one, but lazy
     break
   done
   echo Parallel: ${parallel_test}
 
   # CMake
+  set -o pipefail
   if [[ ${fast} != 0 ]]
   then
+    rm -fv build/testrun.out
     for dir in ${cmake_dirs}
     do
       dir=${cmake_prefix}${dir}
       for target in ${cmake_targets}
       do
         echo Building $target in $dir
-        cmake --build $dir --target $target -- -j8 || exit 1
+        cmake --build $dir --target $target -- -j8 \
+          | tee -a build/testrun.out || exit 1
       done
     done || exit 1
   else
-    ./Builds/Test.py -q -v --dir ${cmake_dirs} --target ${cmake_targets} \
-      ${parallel_test} -- -j8 || exit 1
+    set -x
+    ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets} \
+      ${parallel_test} -- -j8 | tee build/testrun.out || exit 1
+    set +x
   fi
 
 ) || exit 1
