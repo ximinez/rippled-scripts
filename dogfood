@@ -94,7 +94,7 @@ time (
     done || exit 1
   else
     set -x
-    ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets} \
+    ./Builds/Test.py -v -q --dir ${cmake_dirs} --target ${cmake_targets} \
       ${parallel_test} -- -j8 | tee build/testrun.out || exit 1
     set +x
   fi
