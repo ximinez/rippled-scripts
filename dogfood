@@ -53,12 +53,14 @@ cmake_targets="rippled"
 echo Targets: ${cmake_targets}
 
 time (
+  set -o pipefail
+  rm -fv build/testrun.out
   if [[ ${clean} != 0 ]]
   then
     for dir in ${cmake_dirs}
     do
       dir=${cmake_prefix}${dir}
-      cmake --build $dir --target clean || exit 1
+      cmake --build $dir --target clean | tee -a build/testrun.out || exit 1
     done
   fi
 
@@ -68,26 +70,24 @@ time (
   do
     set -x
     dir=${cmake_prefix}${dir}
-    cmake --build $dir -- -j8 || exit 1
+    cmake --build $dir -- -j8 | tee -a build/testrun.out || exit 1
     parallel_test=$( $dir/rippled --help |& grep -q unittest-jobs && \
       echo '--testjobs=8' )
     set +x
     # There's probably a smarter way to just get the first one, but lazy
     break
   done
-  echo Parallel: ${parallel_test}
+  echo Parallel: ${parallel_test} | tee -a build/testrun.out
 
   # CMake
-  set -o pipefail
   if [[ ${fast} != 0 ]]
   then
-    rm -fv build/testrun.out
     for dir in ${cmake_dirs}
     do
       dir=${cmake_prefix}${dir}
       for target in ${cmake_targets}
       do
-        echo Building $target in $dir
+        echo Building $target in $dir | tee -a build/testrun.out
         cmake --build $dir --target $target -- -j8 \
           | tee -a build/testrun.out || exit 1
       done
