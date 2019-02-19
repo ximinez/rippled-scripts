@@ -70,6 +70,6 @@ ${RIPPLED} -q \
   && ${RIPPLED} -q \
     --rpc_ip=${RPC_IP}:${RPC_PORT} account_info ${account} validated \
       | jq -j 'if .error then .
-        else { "Balance" : .result.account_data.Balance,
+        else { "Balance" : (.result.account_data.Balance | tonumber / 1000000),
         "PreviousTxnLedgerSeq" : .result.account_data.PreviousTxnLgrSeq }
         end'
