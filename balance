@@ -69,7 +69,10 @@ ${RIPPLED} -q \
       ( /quality_out/ ) { balance=""; account=""; limit=0; }' \
   && ${RIPPLED} -q \
     --rpc_ip=${RPC_IP}:${RPC_PORT} account_info ${account} validated \
-      | jq -j 'if .error then .
+      | jq -j 'if .error then { "error" : .error,
+        "error_message" : .error_message }
+        elif .result.error then { "error" : .result.error,
+        "error_message" : .result.error_message }
         else { "Balance" : (.result.account_data.Balance | tonumber / 1000000),
         "PreviousTxnLedgerSeq" : .result.account_data.PreviousTxnLgrSeq }
         end'
