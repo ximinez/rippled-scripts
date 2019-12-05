@@ -2,10 +2,10 @@
 
 # set -e
 
-ssh_host=professornormal
+ssh_host=localhost
 rpc_private=5015
 
-rpc_ip=192.168.42.100
+rpc_ip=127.0.0.1
 rpc_port=51235
 
 accountfile="$( dirname $0 )/ripple-account.txt"
@@ -19,7 +19,7 @@ fi
 can_delete()
 {
   set -o pipefail
-  if [[ ${ssh_host} == $( hostname ) ]]
+  if [[ ${ssh_host} == $( hostname ) -o ${ssh_host} == "localhost" ]]
   then
     ~/bin/rippled -q --rpc_ip=127.0.0.1:${rpc_private} can_delete $* | \
       jq '.result.can_delete'
