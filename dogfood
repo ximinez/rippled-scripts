@@ -3,6 +3,14 @@
 set -e
 # set -x
 
+cmake_prefix=./build/cmake/
+cmake_dirs=$(\ls -r ${cmake_prefix})
+echo Dirs: ${cmake_dirs}
+cmake_targets="rippled"
+echo Targets: ${cmake_targets}
+rundir=$(\ls -r ${cmake_prefix} | head -1)
+echo rundir: ${rundir}
+
 gdb=""
 gdbextra=""
 clean=0
@@ -35,6 +43,11 @@ do
       gdb="${gdb} ${@} "
       shift "${#@}"
     fi
+  elif [[ -d "${cmake_prefix}$1" ]]
+  then
+    rundir="$1"
+    echo rundir changed to: ${rundir}
+    shift
   else
     echo "Unknown option: $1" 1>&2
     exit 127
@@ -45,12 +58,6 @@ if [[ ${#gdb} > 0 ]]
 then
   gdb="${gdb} -ex run -ex quit --args"
 fi
-
-cmake_prefix=./build/cmake/
-cmake_dirs=$(\ls -r ${cmake_prefix})
-echo Dirs: ${cmake_dirs}
-cmake_targets="rippled"
-echo Targets: ${cmake_targets}
 
 time (
   set -o pipefail
@@ -66,17 +73,14 @@ time (
 
   # Determine if parallel unit tests are enabled.
   parallel_test=''
-  for dir in ${cmake_dirs}
-  do
-    set -x
-    dir=${cmake_prefix}${dir}
-    cmake --build $dir -- -j8 | tee -a build/testrun.out || exit 1
-    parallel_test=$( $dir/rippled --help |& grep -q unittest-jobs && \
-      echo '--testjobs=8' )
-    set +x
-    # There's probably a smarter way to just get the first one, but lazy
-    break
-  done
+
+  set -x
+  dir=${cmake_prefix}${rundir}
+  cmake --build $dir -- -j8 | tee -a build/testrun.out || exit 1
+  parallel_test=$( $dir/rippled --help |& grep -q unittest-jobs && \
+    echo '--testjobs=8' )
+  set +x
+
   echo Parallel: ${parallel_test} | tee -a build/testrun.out
 
   # CMake
@@ -115,7 +119,6 @@ fi
 gnome-terminal --geometry=80x30 -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
 # Give the terminal a few seconds to create
 sleep 2
-cmake_dirs=$(\ls "${cmake_prefix}")
 for network in rippled # rippled-altnet
 do
   if [ -e ~/${network}/debug.log ]
@@ -124,12 +127,8 @@ do
   fi
   if [ -e ~/.config/ripple/${network}.cfg ]
   then
-    for rundir in ${cmake_dirs}
-    do
-      tmux new-window -t rippled "${gdb} \
-        ${cmake_prefix}${rundir}/rippled \
-        --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
-      break
-    done
+    tmux new-window -t rippled "${gdb} \
+      ${cmake_prefix}${rundir}/rippled \
+      --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
   fi
 done
