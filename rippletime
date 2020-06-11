@@ -1,0 +1,22 @@
+#!/bin/bash
+
+rippleepoch=946684800
+if [ $# = 0 ]
+then
+  time="now"
+elif [ $# = 1 ] && [ "$1" -eq "$1" ] 2>/dev/null
+then
+  time="@$[ $1 + $rippleepoch ]"
+  echo "Input ripple time: $1"
+else
+  time="$*"
+  echo "Input wall time: ${time}"
+fi
+
+seconds=$( date --date="${time}" +%s )
+echo -n "Local time: "
+date --date="@${seconds}"
+echo -n "UTC time: "
+date --utc --date="@${seconds}"
+echo "Ripple time: " $[ $seconds - $rippleepoch ]
+
