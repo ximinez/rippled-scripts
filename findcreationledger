@@ -1,0 +1,57 @@
+#!/bin/bash
+
+# This is only useful if the account was created within the ledger range
+# available. If you don't keep a lot of history, you're not going to have much
+# success.
+#
+# Minimal input validation is performed.
+#
+if [ $# -eq 0 ]
+then
+  echo "Usage: findcreationledger <account_id> <starting_ledger> <rpc_ip:rpc_port>"
+  exit 1
+fi
+
+account=$1
+shift
+[ $# -gt 0 ] && notfound=$1 || notfound=55313921
+shift
+[ $# -gt 0 ] && rpcip="--rpc_ip=$1"
+lastseq=0
+found=$( rippled ${rpcip} -q ledger validated | jq '.result.ledger_index' )
+if [ -z "${notfound}" -o "${notfound}" == "null" \
+  -o -z "${found}" -o "${found}" == "null" ]
+then
+  echo "Error: Not found: $notfound. Found: $found."
+  exit 1
+fi
+while [ $[ $notfound + 1 ] -lt $found ]
+do
+  test=$[ ($notfound + $found) / 2 ] && \
+  echo -e "\nNot found: $notfound. Found: $found. Test $test." && \
+  result=$( rippled ${rpcip} -q account_info $account $test ) && \
+  seq=$( echo $result | jq '.result.account_data.Sequence' ) && \
+  if [ -z "${seq}" -o "${seq}" = "null" ]
+  then
+    error=$( echo $result | jq '.result.error_message' )
+    echo "Not found ${error} at ledger $test"
+    notfound=$test
+  else
+    echo "Found seq $seq at ledger $test"
+    found=${test}
+    lastseq=${seq}
+  fi || break
+done &&\
+echo -e "\nNot found: $notfound. Found: $found." && \
+if [ $notfound -gt $found ]
+then
+  echo "Something went wrong"
+fi && \
+if [ $lastseq -lt $found ]
+then
+  echo "First found instance of account ${account}"
+  echo "has sequence ${lastseq}, so was created before DeletableAccounts"
+  echo "or outside of available data"
+else
+  echo "Created with sequence ${lastseq}"
+fi
