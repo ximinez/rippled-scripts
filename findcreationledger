@@ -9,16 +9,25 @@
 if [ $# -eq 0 ]
 then
   echo "Usage: findcreationledger <account_id> <starting_ledger> <rpc_ip:rpc_port>"
+  # s1 and s2 listen to RPC on port 51234
   exit 1
 fi
 
+# This is the ledger on mainnet where the deleteable accounts amendment was
+# enabled. If an account ever had a sequence less than this, it must have
+# been created before. May cause problems on altnets, but I'm not going to
+# worry about that now.
+deleteableaccounts=55313921
+
 account=$1
 shift
-[ $# -gt 0 ] && notfound=$1 || notfound=55313921
+[ $# -gt 0 ] && notfound=$1 || notfound=${deleteableaccounts}
 shift
 [ $# -gt 0 ] && rpcip="--rpc_ip=$1"
 lastseq=0
 found=$( rippled ${rpcip} -q ledger validated | jq '.result.ledger_index' )
+tests=0
+nexttest=0
 if [ -z "${notfound}" -o "${notfound}" == "null" \
   -o -z "${found}" -o "${found}" == "null" ]
 then
@@ -27,8 +36,15 @@ then
 fi
 while [ $[ $notfound + 1 ] -lt $found ]
 do
-  test=$[ ($notfound + $found) / 2 ] && \
+  if [ ${nexttest} -ne 0 ]
+  then
+    test=${nexttest}
+  else
+    test=$[ ($notfound + $found) / 2 ]
+  fi && \
+  nexttest=0 && \
   echo -e "\nNot found: $notfound. Found: $found. Test $test." && \
+  tests=$[ ${tests} + 1 ]
   result=$( rippled ${rpcip} -q account_info $account $test ) && \
   seq=$( echo $result | jq '.result.account_data.Sequence' ) && \
   if [ -z "${seq}" -o "${seq}" = "null" ]
@@ -38,11 +54,17 @@ do
     notfound=$test
   else
     echo "Found seq $seq at ledger $test"
-    found=${test}
+    if [ ${seq} -ge ${deleteableaccounts} -a ${seq} -lt ${found} ]
+    then
+      found=${seq}
+      nexttest=$[ ${seq} - 1 ]
+    else
+      found=${test}
+    fi
     lastseq=${seq}
   fi || break
 done &&\
-echo -e "\nNot found: $notfound. Found: $found." && \
+echo -e "\nNot found: $notfound. Found: $found. Tests: $tests" && \
 if [ $notfound -gt $found ]
 then
   echo "Something went wrong"
