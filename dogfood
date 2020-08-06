@@ -59,6 +59,8 @@ then
   gdb="${gdb} -ex run -ex quit --args"
 fi
 
+nproc=$(nproc)
+
 time (
   set -o pipefail
   rm -fv build/testrun.out
@@ -76,9 +78,9 @@ time (
 
   set -x
   dir=${cmake_prefix}${rundir}
-  cmake --build $dir -- -j8 | tee -a build/testrun.out || exit 1
+  cmake --build $dir -- -j${nproc} | tee -a build/testrun.out || exit 1
   parallel_test=$( $dir/rippled --help |& grep -q unittest-jobs && \
-    echo '--testjobs=8' )
+    echo "--testjobs=${nproc}" )
   set +x
 
   echo Parallel: ${parallel_test} | tee -a build/testrun.out
@@ -92,14 +94,14 @@ time (
       for target in ${cmake_targets}
       do
         echo Building $target in $dir | tee -a build/testrun.out
-        cmake --build $dir --target $target -- -j8 \
+        cmake --build $dir --target $target -- -j${nproc} \
           | tee -a build/testrun.out || exit 1
       done
     done || exit 1
   else
     set -x
     ./Builds/Test.py -v -q --dir ${cmake_dirs} --target ${cmake_targets} \
-      ${parallel_test} -- -j8 | tee build/testrun.out || exit 1
+      ${parallel_test} -- -j${nproc} | tee build/testrun.out || exit 1
     set +x
   fi
 
