@@ -118,7 +118,7 @@ if [ -e ~/rippled/debug.log ]
 then
   mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
 fi
-gnome-terminal --geometry=80x30 -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
+gnome-terminal -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
 # Give the terminal a few seconds to create
 sleep 2
 for network in rippled # rippled-altnet
