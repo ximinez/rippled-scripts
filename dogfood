@@ -118,6 +118,10 @@ if [ -e ~/rippled/debug.log ]
 then
   mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
 fi
+if [ -e ~/rippled/logs/debug.log ]
+then
+  mv -vi ~/rippled/logs/debug.log{,.$(date '+%s')} || true
+fi
 gnome-terminal -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
 # Give the terminal a few seconds to create
 sleep 2
