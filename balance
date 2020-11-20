@@ -84,3 +84,9 @@ do
           "PreviousTxnLedgerSeq" : .result.account_data.PreviousTxnLgrSeq }
           end'
 done
+
+echo -n "XRP/USD/Bitstamp best offer: "
+${RIPPLED} -q \
+  --rpc_ip=192.168.42.100:5015 \
+  book_offers 'USD/rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B' XRP \
+  | jq '.result.offers[0].quality | tonumber * 1000000'
