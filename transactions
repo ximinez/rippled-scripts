@@ -8,13 +8,17 @@ rpc_private=5015
 rpc_ip=127.0.0.1
 rpc_port=51235
 
-accountfile="$( dirname $0 )/ripple-account.txt"
-if [ -r ${accountfile} ]
-then
-  account=$(cat ${accountfile})
-else
-  account=rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh
-fi
+accounts=( rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh )
+for accountfile in "$( dirname $0 )/ripple-account.txt" "$( dirname $0 )/ripple-accounts.txt"
+do
+  echo Looking for account file ${accountfile}
+  if [ -r ${accountfile} ]
+  then
+    accounts=( $( cat ${accountfile} ) )
+    echo "Found accounts ${accounts[@]}"
+    break
+  fi
+done
 
 can_delete()
 {
@@ -43,43 +47,53 @@ do
   echo
   date
   echo Checking starting with ${next}
-  time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip}:${rpc_port} account_tx \
-    -- ${account} ${next} -1 )
+  unset nextdelete
+  for account in "${accounts[@]}"
+  do
+    echo Looking for transactions for ${account} starting from ledger ${next}
+    time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip}:${rpc_port} account_tx \
+      -- ${account} ${next} ${nextdelete:--1} )
 
-  error=$(echo ${txs} | jq '.error' )
-  status=$(echo ${txs} | jq '.result.status' )
-  if [[ ${error} != "null" ]]
-  then
-    echo Error: $error
-    echo ${txs} | jq '[ .error_message, .error_what ]'
-    sleep 60
-    continue
-  elif [[ ${status} != '"success"' ]]
-  then
-    echo account_tx status: ${status}
-    echo ${txs} | jq '[ .result.error, .result.error_message ]'
-    sleep 60
-    continue
-  fi
+    error=$(echo ${txs} | jq '.error' )
+    status=$(echo ${txs} | jq '.result.status' )
+    if [[ ${error} != "null" ]]
+    then
+      echo Error: $error
+      echo ${txs} | jq '[ .error_message, .error_what ]'
+      sleep 60
+      continue
+    elif [[ ${status} != '"success"' ]]
+    then
+      echo account_tx status: ${status}
+      echo ${txs} | jq '[ .result.error, .result.error_message ]'
+      sleep 60
+      continue
+    fi
 
-  min=$( echo ${txs} | jq '.result.ledger_index_min' )
-  max=$( echo ${txs} | jq '.result.ledger_index_max' )
-  if [[ ${min} > ${next} ]]
-  then
-    backfill=$(( ${min} - ${next} ))
-    echo rippled only has ${min}-${max}. Wait for backfill ${backfill} ledgers.
-    sleep $(( $backfill / 10 ))
-    continue
-  fi
+    min=$( echo ${txs} | jq '.result.ledger_index_min' )
+    max=$( echo ${txs} | jq '.result.ledger_index_max' )
+    if [[ ! -v nextdelete ]]
+    then
+      nextdelete=${max}
+      echo Pending can_delete to ${nextdelete}
+    fi
+    if [[ ${min} > ${next} ]]
+    then
+      backfill=$(( ${min} - ${next} ))
+      echo rippled only has ${min}-${max}. Wait for backfill ${backfill} ledgers.
+      sleep $(( $backfill / 10 ))
+      continue
+    fi
 
-  count=$( echo ${txs} | jq '.result.transactions | length' )
-  echo Found ${count} txs in ${min}-${max}
-  if [[ ${count} > 0 ]]
-  then
-    echo "${txs}" > transactions.${min}-${max}.txt
-  fi
-  can_delete ${max}
-  next=$(( ${max} + 1 ))
+    count=$( echo ${txs} | jq '.result.transactions | length' )
+    echo Found ${count} txs in ${min}-${max}
+    if [[ ${count} > 0 ]]
+    then
+      echo "${txs}" >> transactions.${min}-${max}.txt
+    fi
+  done
+  can_delete ${nextdelete}
+  next=$(( ${nextdelete} + 1 ))
   echo Updated can_delete to $( can_delete )
 
   # Delay enough time for a new ledger to close.
