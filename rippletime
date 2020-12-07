@@ -1,6 +1,11 @@
 #!/bin/bash
 
-rippleepoch=946684800
+seconds()
+{
+  date --date="${1}" +%s
+}
+
+rippleepoch=$( seconds "Sat Jan  1 12:00:00 AM UTC 2000" )
 if [ $# = 0 ]
 then
   time="now"
@@ -13,7 +18,7 @@ else
   echo "Input wall time: ${time}"
 fi
 
-seconds=$( date --date="${time}" +%s )
+seconds=$( seconds "${time}" )
 echo -n "Local time: "
 date --date="@${seconds}"
 echo -n "UTC time: "
