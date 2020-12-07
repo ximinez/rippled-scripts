@@ -105,15 +105,16 @@ then
   XRP=0.000001
 fi
 echo "${humanpair[@]} spread: " \
-  $( ${RIPPLED} -q \
-    --rpc_ip=192.168.42.100:5015 \
+  $( ${RIPPLED} -q --rpc_ip=192.168.42.100:5015 \
     book_offers ${machinepair[@]} \
-    | jq ".result.offers[0].quality | tonumber | 1 / . * ${XRP} * 100000
-    | round | . / 100000"
+    | jq "if .error != null then .error_message
+      else .result.offers[0].quality | tonumber | 1 / . * ${XRP} * 100000
+      | round | . / 100000 end"
   ) \
   $( ${RIPPLED} -q \
     --rpc_ip=192.168.42.100:5015 \
     book_offers ${reversepair[@]} \
-    | jq ".result.offers[0].quality | tonumber * ${XRP} * 100000
-    | round | . / 100000"
+    | jq "if .error != null then .error_message
+      else .result.offers[0].quality | tonumber * ${XRP} * 100000
+      | round | . / 100000 end"
   )
