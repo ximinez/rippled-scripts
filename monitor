@@ -9,7 +9,7 @@ echo $RIPPLED $RPC_PORT $PEER_PORT
 
 gnome-terminal --window-with-profile=Unnamed -t server_info --command="watch -c -d  -n 0.2 server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
   --tab-with-profile=Persistent -t balance --command="watch -d=permanent -n 1 balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
-  --tab -t transactions --command="transactions" \
+  --tab -t transactions --command="transactions | tee ~/transactions-output.txt" \
   --tab -t peerfinder --command="watch -d -n 0.2 \"${RIPPLED} --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
   --tab -t get_counts --command="watch -c -d -n 1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts" \
   --tab -t crawl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
