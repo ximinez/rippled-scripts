@@ -61,28 +61,29 @@ do
       echo Error: $error
       echo ${txs} | jq '[ .error_message, .error_what ]'
       sleep 60
-      continue
+      break
     elif [[ ${status} != '"success"' ]]
     then
       echo account_tx status: ${status}
       echo ${txs} | jq '[ .result.error, .result.error_message ]'
       sleep 60
-      continue
+      break
     fi
 
     min=$( echo ${txs} | jq '.result.ledger_index_min' )
     max=$( echo ${txs} | jq '.result.ledger_index_max' )
-    if [[ ! -v nextdelete ]]
-    then
-      nextdelete=${max}
-      echo Pending can_delete to ${nextdelete}
-    fi
     if [[ ${min} > ${next} ]]
     then
       backfill=$(( ${min} - ${next} ))
       echo rippled only has ${min}-${max}. Wait for backfill ${backfill} ledgers.
       sleep $(( $backfill / 10 ))
-      continue
+      unset nextdelete
+      break
+    fi
+    if [[ ! -v nextdelete ]]
+    then
+      nextdelete=${max}
+      echo Pending can_delete to ${nextdelete}
     fi
 
     count=$( echo ${txs} | jq '.result.transactions | length' )
@@ -92,11 +93,14 @@ do
       echo "${txs}" >> transactions.${min}-${max}.txt
     fi
   done
-  can_delete ${nextdelete}
-  next=$(( ${nextdelete} + 1 ))
-  echo Updated can_delete to $( can_delete )
+  if [[ -v nextdelete ]]
+  then
+    can_delete ${nextdelete}
+    next=$(( ${nextdelete} + 1 ))
+    echo Updated can_delete to $( can_delete )
 
-  # Delay enough time for a new ledger to close.
-  sleep 30
+    # Delay enough time for a new ledger to close.
+    sleep 30
+  fi
 done
 
