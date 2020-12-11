@@ -136,6 +136,8 @@ do
     tmux new-window -t rippled "${gdb} \
       ${cmake_prefix}${rundir}/rippled \
       --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
+      : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
+      : 'C-x a'
   fi
 done
 

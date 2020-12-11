@@ -13,6 +13,7 @@ gnome-terminal --window-with-profile=Unnamed -t server_info --command="watch -c 
   --tab -t peerfinder --command="watch -d -n 0.2 \"${RIPPLED} --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
   --tab -t get_counts --command="watch -c -d -n 1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts" \
   --tab -t crawl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
+  --tab -t vl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
   --tab -t top --command="top" \
   --tab -t bandwidth --command="bwm-ng -o csv -c 0 -t 10000 | tee -a ~/rippled/bandwidth.csv" \
   --tab -t fee --command="watch -c -d -n 0.1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
