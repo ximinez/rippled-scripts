@@ -25,7 +25,7 @@ do
   elif [[ "$1" == "debug" ]]
   then
     shift
-    gdb="gdb -q --tui "
+    gdb="gdb -q -ex 'tui enable' -ex 'winheight src -8' "
     gdbextra="--fg"
   elif [[ "$1" == "test" ]]
   then
