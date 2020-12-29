@@ -108,6 +108,7 @@ echo "${humanpair[@]} spread: " \
   $( ${RIPPLED} -q --rpc_ip=192.168.42.100:5015 \
     book_offers ${machinepair[@]} \
     | jq "if .error != null then .error_message
+      elif .result.error != null then .result.error_message
       else .result.offers[0].quality | tonumber | 1 / . * ${XRP} * 100000
       | round | . / 100000 end"
   ) \
@@ -115,6 +116,7 @@ echo "${humanpair[@]} spread: " \
     --rpc_ip=192.168.42.100:5015 \
     book_offers ${reversepair[@]} \
     | jq "if .error != null then .error_message
+      elif .result.error != null then .result.error_message
       else .result.offers[0].quality | tonumber * ${XRP} * 100000
       | round | . / 100000 end"
   )
