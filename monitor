@@ -9,12 +9,12 @@ echo $RIPPLED $RPC_PORT $PEER_PORT
 
 gnome-terminal --window-with-profile=Unnamed -t server_info --command="watch -c -d  -n 0.2 server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
   --tab-with-profile=Persistent -t balance --command="watch -d=permanent -n 1 balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
-  --tab -t transactions --command="transactions | tee ~/transactions-output.txt" \
-  --tab -t peerfinder --command="watch -d -n 0.2 \"${RIPPLED} --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
-  --tab -t get_counts --command="watch -c -d -n 1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts" \
-  --tab -t crawl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
-  --tab -t vl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
-  --tab -t top --command="top" \
-  --tab -t bandwidth --command="bwm-ng -o csv -c 0 -t 10000 | tee -a ~/rippled/bandwidth.csv" \
-  --tab -t fee --command="watch -c -d -n 0.1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
+  --tab-with-profile=Persistent -t transactions --command="$( dirname $0 )/redirect transactions ${HOME}/rippled/transactions-output.txt" \
+  --tab-with-profile=Persistent -t peerfinder --command="watch -d -n 0.2 \"${RIPPLED} --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
+  --tab-with-profile=Persistent -t get_counts --command="watch -c -d -n 1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts" \
+  --tab-with-profile=Persistent -t crawl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
+  --tab-with-profile=Persistent -t vl --command="watch -d -n 0.05 curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
+  --tab-with-profile=Persistent -t top --command="top" \
+  --tab-with-profile=Persistent -t bandwidth --command="redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv" \
+  --tab-with-profile=Persistent -t fee --command="watch -c -d -n 0.1 ${RIPPLED}  --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
 
