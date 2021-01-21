@@ -33,7 +33,8 @@ do
   # echo $account
   ${RIPPLED} -q \
     --rpc_ip=${RPC_IP}:${RPC_PORT} account_lines ${account} "" \
-      validated | egrep 'balance|currency|account|index|limit|quality|error' \
+      validated | grep -e balance -e currency -e account -e index \
+        -e limit -e quality -e error_message \
       | gawk '
         function gatewayname(c)
         {
