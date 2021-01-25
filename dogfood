@@ -114,23 +114,18 @@ fi
 
 set -x
 
-if [ -e ~/rippled/debug.log ]
-then
-  mv -vi ~/rippled/debug.log{,.$(date '+%s')} || true
-fi
-if [ -e ~/rippled/logs/debug.log ]
-then
-  mv -vi ~/rippled/logs/debug.log{,.$(date '+%s')} || true
-fi
 gnome-terminal -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
 # Give the terminal a few seconds to create
 sleep 2
 for network in rippled # rippled-altnet
 do
-  if [ -e ~/${network}/debug.log ]
-  then
-    mv -vi ~/${network}/debug.log{,.$(date '+%s')} || true
-  fi
+  for file in debug.log logs/debug.log log/debug.log
+  do
+    if [ -e "${HOME}/${network}/${file}" ]
+    then
+      mv -vi "${HOME}/${network}/${file}"{,.$(date '+%s')} || true
+    fi
+  done
   if [ -e ~/.config/ripple/${network}.cfg ]
   then
     # Stop the currently running rippled, if any
