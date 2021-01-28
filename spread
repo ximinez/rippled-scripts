@@ -106,7 +106,7 @@ then
 fi
 # echo "${machinepair[@]}"
 echo "${humanpair[@]} spread: " \
-  $( ${RIPPLED} -q --rpc_ip=192.168.42.100:5015 \
+  $( ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} \
     book_offers ${machinepair[@]} "" validated \
     | jq "if .error != null then .error_message
       elif .result.error != null then .result.error_message
@@ -114,7 +114,7 @@ echo "${humanpair[@]} spread: " \
       | round | . / 100000 end"
   ) \
   $( ${RIPPLED} -q \
-    --rpc_ip=192.168.42.100:5015 \
+    --rpc_ip=${RPC_IP}:${RPC_PORT} \
     book_offers ${reversepair[@]} "" validated \
     | jq "if .error != null then .error_message
       elif .result.error != null then .result.error_message
