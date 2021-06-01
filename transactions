@@ -52,7 +52,7 @@ do
   do
     echo Looking for transactions for ${account} starting from ledger ${next}
     time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip}:${rpc_port} account_tx \
-      -- ${account} ${next} ${nextdelete:--1} )
+      -- ${account} ${next} ${nextdelete:--1} descending )
 
     error=$(echo ${txs} | jq '.error' )
     status=$(echo ${txs} | jq '.result.status' )
