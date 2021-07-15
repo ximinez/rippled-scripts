@@ -1,0 +1,197 @@
+#!/bin/bash
+
+jq '
+def dropstoxrp: tonumber / 1000000 | tostring + " XRP" ;
+def exchangename:
+(
+  (
+    if . == "razqQKzJRdB4UxFPWf5NEpEG3WMkmwgcXA" then
+      "RippleChina"
+    elif . == "r3ADD8kXSUKHd6zTCKfnKT3zV9EZHjzp1S" then
+      "RippleUnion"
+    elif . == "rvYAfWj5gh67oV6fW32ZzP3Aw4Eubs59B" then
+      "Bitstamp"
+    elif . == "rrh7rf1gV2pXAoqA8oYbpHd8TKv5ZQeo67" then
+      "GBI"
+    elif . == "rhub8VRN55s94qWKDv6jmDy1pUykJzF3wq" then
+      "Gatehub"
+    elif . == "rMAz5ZnK73nyNUL4foAvaxdreczCkG3vA6" then
+      "Ripple Trade Japan"
+    elif . == "r94s8px6kSw1uZ1MV98dhSRTvc6VMPoPcN" then
+      "tokyojpy"
+    elif . == "rG6FZ31hDHN1K5Dkbma3PSB5uVCuVVRzfn" then
+      "Bitso"
+    elif . == "rMwjYedjc7qqtKYVLiAccJSmCwih4LnE2q" then
+      "SnapSwap"
+    elif . == "rcA8X3TVMST1n3CJeAdGk1RdRCHii7N2h" or
+        . == "rchGBxcD1A1C2tdxF6papQYZ8kjRKMYcL" or
+        . == "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" or
+        . == "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP" then
+      "Gatehub Fifth"
+    else
+      empty
+    end
+  ) + " (" + . + ")" // .
+);
+def accountname:
+(
+  if . == "rYourAccountIDHere" then
+    "MY ACCOUNT"
+  else
+    exchangename
+  end
+
+);
+def stamount:
+(
+  if type == "string" then
+    dropstoxrp
+  elif has("currency") then
+    ( .value | tostring )+ " " + .currency + "/" + ( .issuer | accountname )
+  else
+    .
+  end
+);
+def resultFields:
+(
+  .NewFields // .FinalFields
+);
+def balance:
+(
+  if . == null or .Balance == null then
+    0
+  elif .Balance | type == "object" then
+    .Balance.value | tonumber
+  else
+    .Balance | tonumber
+  end
+);
+def finalbalance:
+(
+  if . == null then
+    0
+  elif resultFields == null and .PreviousFields != null then
+    .PreviousFields | balance
+  else
+    resultFields | balance
+  end
+);
+def previousbalance:
+(
+  if . == null then
+    0
+  elif .PreviousFields == null and .FinalFields != null then
+    .FinalFields | balance
+  else
+    .PreviousFields | balance
+  end
+);
+def rippleepoch: "2000-01-01T0:00:00Z" | fromdate ;
+def fromrippletime: . + rippleepoch ;
+.result.transactions |
+map(
+  {
+    validated,
+    ( .tx.TransactionType ) : ( .tx.Account | accountname ),
+    "hash": .tx.hash,
+    "ledger": ( "#" + ( .tx.ledger_index | tostring ) + " @ " +
+      ( .tx.date | fromrippletime | todate ) ),
+    "changes": (
+      .meta.AffectedNodes |
+      map(
+        {
+          op: ( keys | .[0] ),
+          ( keys | .[0] ) : .[] | (
+            .LedgerEntryType + " for "
+          ),
+          Account: .[] | ( ( resultFields | .Account | accountname ) //
+              ( "UNCHANGED: " + ( .LedgerIndex | .[:20] ) + "..." ) )
+        } +
+        if .[] | .LedgerEntryType == "AccountRoot"
+        then
+          .[] |
+          {
+            "balancechange": (
+              ( finalbalance - previousbalance ) | dropstoxrp
+            )
+          }
+        elif .[] | .LedgerEntryType == "RippleState"
+        then
+          .[] |
+          . + {
+            change: {
+              value: ( finalbalance - previousbalance ),
+              currency: resultFields | .Balance.currency,
+              highIssuer: resultFields | .HighLimit.issuer,
+              lowIssuer: resultFields | .LowLimit.issuer,
+            }
+          } |
+          . + {
+            change: ( .change + ( .change | {
+              highExchange: ( .highIssuer | exchangename ),
+              lowExchange: ( .lowIssuer | exchangename ),
+              useHighIssuer: ( ( .highIssuer | exchangename ) !=
+                .highIssuer ),
+              issuer: (
+                if ( ( .highIssuer | exchangename ) != .highIssuer ) then
+                  .highIssuer
+                else
+                  .lowIssuer
+                end
+              ),
+              other: (
+                if ( ( .highIssuer | exchangename ) != .highIssuer ) then
+                  .lowIssuer
+                else
+                  .highIssuer
+                end
+              )
+            } ) )
+          } |
+          if .change.useHighIssuer | not then
+            . + {
+              change: ( .change + ( .change | {
+                value: -.value,
+              } ) )
+            }
+          else
+            .
+          end |
+            {
+              balancechange: ( .change | stamount ),
+              "for": ( .change.other | accountname ),
+            }
+        elif .[] | .LedgerEntryType == "Offer" then
+          (
+            .[] | resultFields |
+            {
+              Offer: ( "Sell: " + ( .TakerGets | stamount ) + " for " +
+                ( .TakerPays | stamount ) )
+            }
+          )
+          # + .
+        elif .[] | .LedgerEntryType == "DirectoryNode" then
+          empty
+        else
+          null
+        end |
+        . + (
+          if has("for") then
+          {
+            ( .op ) : ( .[.op] + .for )
+          }
+          elif has("Account") then
+          {
+            ( .op ) : ( .[.op] + .Account )
+          }
+          else
+            null
+          end
+        )
+        | del(.["op", "for", "Account"])
+      )
+    )
+  }
+)
+| .[]
+'
