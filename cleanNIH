@@ -1,0 +1,20 @@
+#!/bin/bash
+
+if [[ ! -v NIH_CACHE_ROOT ]]
+then
+  NIH_CACHE_ROOT=.nih_c
+fi
+
+# The stamp directories, which track the source location and git info of
+# the NIH cache, and src directories are safe to use across builds.
+# The build folders, which are more specific, need to be removed.
+find ${NIH_CACHE_ROOT} -depth -type d \
+    \( \
+    \( -iname '*-stamp' -o -iname 'stamp' -o -iname '*-src' -o -iname 'src' \) \
+        -prune -o \
+    \( -iname '*-build' -o -name 'tmp' \) -printf "Delete %p\n" \
+        -exec rm -rf {} \; -o \
+    -iname '*-subbuild' -printf "Clean %p\n" \
+        -exec rm -rfv {}/CMakeCache.txt {}/CMakeFiles \
+            {}/cmake_install.cmake {}/CMakeLists.txt\
+            {}/Makefile \; -exec ls -l {} \;  \)
