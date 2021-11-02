@@ -1,31 +1,46 @@
 #! /bin/bash
 
-if test ${#@} -ne 1
+if test ${#@} -eq 0
 then
-  echo "Usage: $(basename $0) filename"
+  echo "Usage: $(basename $0) filename [...]"
   exit 1
 fi
 
-file="$1"
+files=( "${@}" )
 shift
 
-size() { stat --format="%s" "${file}"; }
+size() { stat --format="%s" "${files[@]}"; }
 
 until size > /dev/null
 do
   sleep 1
 done
 
-oldsize=0
-newsize=$(size)
-while test $newsize -ge $oldsize
+any()
+{
+  op=$1
+  for (( i=0; i<${#newsize[@]}; i=$i+1 ))
+  do
+    if eval "[[ ${newsize[$i]} $op ${oldsize[$i]:-0} ]]"
+    then
+      true
+      return
+    fi
+  done
+  false
+}
+
+oldsize=()
+newsize=( $(size) )
+
+while any -ge
 do
-  if test $newsize -gt $oldsize
+  if any -gt
   then
     date
-    ls -l "${file}"
+    ls -l "${files[@]}"
     sleep 1
   fi
-  oldsize=$newsize
-  newsize=$(size)
+  oldsize=( "${newsize[@]}" )
+  newsize=( $(size) )
 done
