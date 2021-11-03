@@ -1,0 +1,21 @@
+#!/bin/bash
+
+if [[ $1 == "--help" ]]
+then
+  echo Usage: $( basename $0 ) [filename]...
+  echo
+  echo Reads from stdin if no filenames provided.
+  exit 1
+fi
+
+cut -d\  -f4- "${@}" \
+  | sed -e 's/\[[0-9A-Z]\{320,\}\]/\[validation?\]/' \
+    -e 's/\<[0-9A-F]\{64\}\>/**HASH**/g' \
+    -e 's/\([0-9]\{3\}\)[0-9]\{5\}\>/\1XXXXX/g' \
+    -e 's/\<n[0-9a-zA-Z]\{51\}\>/**NODE ID**/g' \
+    -e 's/\<[0-9A-Z]\{40\}\>/**PEER ID**/g' \
+    -e 's/\(^\(Protocol\|Peer\):.*\[\)[0-9]\+\]/\1*ID*\]/' \
+    -e 's/\<[0-9]\+\(ms\)/#\1/g' \
+    -e 's/\<[0-9]\+\>/#/g' \
+  | sort \
+  | uniq -c
