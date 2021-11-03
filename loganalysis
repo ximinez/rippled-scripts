@@ -10,6 +10,7 @@ fi
 
 cut -d\  -f4- "${@}" \
   | sed -e 's/\[[0-9A-Z]\{320,\}\]/\[validation?\]/' \
+    -e 's/\("\(\(parent_\)\?close_time\|total\(C\|_c\)oins\)":"\?[0-9]\{2\}\)[0-9]\+\>/\1NNNNNN/g' \
     -e 's/\<[0-9A-F]\{64\}\>/**HASH**/g' \
     -e 's/\([0-9]\{3\}\)[0-9]\{5\}\>/\1XXXXX/g' \
     -e 's/\<n[0-9a-zA-Z]\{51\}\>/**NODE ID**/g' \
