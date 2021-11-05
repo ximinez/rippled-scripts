@@ -2,11 +2,10 @@
 
 # set -e
 
-ssh_host=localhost
-rpc_private=5015
-
-rpc_ip=127.0.0.1
-rpc_port=51235
+rpc_ip=${1:-"127.0.0.1:5015"}
+ssh_host=${2:-localhost}
+rpc_private=${3:-5015}
+shift 3
 
 accounts=( rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh )
 for accountfile in "$( dirname $0 )/ripple-account.txt" "$( dirname $0 )/ripple-accounts.txt"
@@ -51,7 +50,7 @@ do
   for account in "${accounts[@]}"
   do
     echo Looking for transactions for ${account} starting from ledger ${next}
-    time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip}:${rpc_port} account_tx \
+    time txs=$( ~/bin/rippled -q --rpc_ip=${rpc_ip} account_tx \
       -- ${account} ${next} ${nextdelete:--1} descending )
 
     error=$(echo ${txs} | jq '.error' )
