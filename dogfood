@@ -114,6 +114,7 @@ fi
 
 set -x
 
+ulimit -c unlimited
 gnome-terminal -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
 # Give the terminal a few seconds to create
 sleep 2
