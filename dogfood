@@ -100,7 +100,7 @@ time (
     done || exit 1
   else
     set -x
-    ./Builds/Test.py -v -q --dir ${cmake_dirs} --target ${cmake_targets} \
+    ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets} \
       ${parallel_test} -- -j${nproc} |& tee build/testrun.out || exit 1
     set +x
   fi
@@ -115,7 +115,14 @@ fi
 set -x
 
 ulimit -c unlimited
-gnome-terminal -- tmux new-session -A -s rippled -x 80 -y 30 sleep 600
+terminal=
+tmuxopts="-d"
+if [[ -v DISPLAY ]]; then
+  terminal="gnome-terminal --"
+  tmuxopts=""
+fi
+${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
+  sleep 600 || true
 # Give the terminal a few seconds to create
 sleep 2
 for network in rippled # rippled-altnet
