@@ -1,6 +1,26 @@
 #!/bin/bash
 
+terminal=
+tmuxopts="-d"
+if [[ -v DISPLAY ]]; then
+  terminal="gnome-terminal --"
+  tmuxopts=""
+fi
+if [[ ! -v TMUX ]]
+then
+  # set -x
+  ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
+    sleep 600 || true
+  tmux new-window -d -a -t rippled -n dogfood \
+    "${0}" "${@}"
+  tmux set-option -w -t rippled:dogfood remain-on-exit on
+  echo 'Running in tmux session. Use "tmux attach -t rippled" to join it'
+  exit
+fi
+
+# Exit if anything fails
 set -e
+# Output commands before executing them
 # set -x
 
 cmake_prefix=./build/cmake/
@@ -115,12 +135,6 @@ fi
 set -x
 
 ulimit -c unlimited
-terminal=
-tmuxopts="-d"
-if [[ -v DISPLAY ]]; then
-  terminal="gnome-terminal --"
-  tmuxopts=""
-fi
 ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
   sleep 600 || true
 # Give the terminal a few seconds to create
