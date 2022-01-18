@@ -24,7 +24,8 @@ deleteableaccounts=55313921
 
 account=$1
 shift
-[[ $# -gt 0 && $1 -ne 0 ]] && notfound=$1 || notfound=${deleteableaccounts}
+[[ $# -gt 0 && $1 -ne 0 ]] && minledger=$1 || minledger=${deleteableaccounts}
+notfound="${minledger}"
 shift
 [[ $# -gt 0 ]] && rpcip="--rpc_ip=$1"
 lastseq=0
@@ -79,11 +80,34 @@ if [[ $notfound -gt $found ]]
 then
   echo "Something went wrong"
 fi && \
-if [[ $lastseq -lt $found ]]
+if type jq > /dev/null && [[ $[ $notfound + 1 ] -eq $found && \
+    ${lastseq} -ne ${found} && ${lastseq} -ne 1 ]]
 then
-  echo "First found instance of account ${account}"
-  echo "has sequence ${lastseq}, so was created before DeletableAccounts"
-  echo "or outside of available data"
+  echo "Look for transactions in ledger ${found} with seq before ${lastseq}"
+  createdseq=$(rippled -q ${rpcip} account_tx ${account} \
+    ${found} ${found} | jq '.result.transactions |
+      map(.meta.AffectedNodes |
+        map(.CreatedNode |
+          select(.LedgerEntryType == "AccountRoot" and
+            .NewFields.Account == "'${account}'"))) |
+      .[] | .[] | .NewFields.Sequence')
+  if [[ "${createdseq}" != "" && "${createdseq}" -lt "${lastseq}" ]]
+  then
+    echo "Found transaction creating account with seq ${createdseq}"
+    lastseq="${createdseq}"
+  fi
+fi
+echo
+if [[ $[ $notfound + 1 ] -eq $found && ( ${lastseq} -eq ${found} \
+    || ${lastseq} -eq 1 ) ]]
+then
+  echo "${account} was probably created"
+  echo "in ledger ${found} with sequence ${lastseq}"
 else
-  echo "Created with sequence ${lastseq}"
+  echo "First found instance of account ${account}"
+  echo "has sequence ${lastseq}, which means either:"
+  echo "* it was created before ledger ${minledger}"
+  echo "* in a ledger outside the range of available ledgers"
+  echo "* or it was created in ledger ${found} and had transactions"
+  echo "  validated in that ledger, too."
 fi
