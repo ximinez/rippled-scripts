@@ -80,6 +80,12 @@ if [[ $notfound -gt $found ]]
 then
   echo "Something went wrong"
 fi && \
+if [[ "${lastseq}" -eq 0 ]]
+then
+  echo
+  echo "${account} not found"
+  exit 1
+fi
 if type jq > /dev/null && [[ $[ $notfound + 1 ] -eq $found && \
     ${lastseq} -ne ${found} && ${lastseq} -ne 1 ]]
 then
