@@ -6,9 +6,12 @@
 #
 # Minimal input validation is performed.
 #
-if [ $# -eq 0 ]
+if [[ $# -eq 0 ]]
 then
-  echo "Usage: findcreationledger <account_id> <starting_ledger> <rpc_ip:rpc_port>"
+  echo "Usage: findcreationledger <account_id> [<minimum_ledger> [<rpc_ip:rpc_port>]]"
+  echo
+  echo "If minimum_ledger is not provided or is 0, the Mainnet ledger where"
+  echo "the DeleteableAccounts amendment was activated will be used."
   # s1 and s2 listen to RPC on port 51234
   exit 1
 fi
@@ -21,22 +24,22 @@ deleteableaccounts=55313921
 
 account=$1
 shift
-[ $# -gt 0 ] && notfound=$1 || notfound=${deleteableaccounts}
+[[ $# -gt 0 && $1 -ne 0 ]] && notfound=$1 || notfound=${deleteableaccounts}
 shift
-[ $# -gt 0 ] && rpcip="--rpc_ip=$1"
+[[ $# -gt 0 ]] && rpcip="--rpc_ip=$1"
 lastseq=0
 found=$( rippled ${rpcip} -q ledger validated | jq '.result.ledger_index' )
 tests=0
 nexttest=0
-if [ -z "${notfound}" -o "${notfound}" == "null" \
-  -o -z "${found}" -o "${found}" == "null" ]
+if [[ -z "${notfound}" || "${notfound}" == "null" \
+  || -z "${found}" || "${found}" == "null" ]]
 then
   echo "Error: Not found: $notfound. Found: $found."
   exit 1
 fi
-while [ $[ $notfound + 1 ] -lt $found ]
+while [[ $[ $notfound + 1 ] -lt $found ]]
 do
-  if [ ${nexttest} -ne 0 ]
+  if [[ ${nexttest} -ne 0 ]]
   then
     test=${nexttest}
   else
@@ -47,14 +50,21 @@ do
   tests=$[ ${tests} + 1 ]
   result=$( rippled ${rpcip} -q account_info $account $test ) && \
   seq=$( echo $result | jq '.result.account_data.Sequence' ) && \
-  if [ -z "${seq}" -o "${seq}" = "null" ]
+  if [[ -z "${seq}" || "${seq}" = "null" ]]
   then
     error=$( echo $result | jq '.result.error_message' )
     echo "Not found ${error} at ledger $test"
     notfound=$test
   else
     echo "Found seq $seq at ledger $test"
-    if [ ${seq} -ge ${deleteableaccounts} -a ${seq} -lt ${found} ]
+    # It is unlikely and difficult, but not impossible, for an account
+    # to send more than 55 million transactions, which would make it
+    # look like a post-DeletableAccounts account when maybe it isn't.
+    # To speed things up, though, assume any account with a sequence
+    # that large was created at that ledger.
+    # Have any accounts sent more than 55 million transactions?
+    if [[ ${seq} -ge ${deleteableaccounts} && ${seq} -lt ${found} \
+       && ${seq} -gt ${notfound} ]]
     then
       found=${seq}
       nexttest=$[ ${seq} - 1 ]
@@ -65,11 +75,11 @@ do
   fi || break
 done &&\
 echo -e "\nNot found: $notfound. Found: $found. Tests: $tests" && \
-if [ $notfound -gt $found ]
+if [[ $notfound -gt $found ]]
 then
   echo "Something went wrong"
 fi && \
-if [ $lastseq -lt $found ]
+if [[ $lastseq -lt $found ]]
 then
   echo "First found instance of account ${account}"
   echo "has sequence ${lastseq}, so was created before DeletableAccounts"
