@@ -107,7 +107,13 @@ else
   echo "First found instance of account ${account}"
   echo "has sequence ${lastseq}, which means either:"
   echo "* it was created before ledger ${minledger}"
-  echo "* in a ledger outside the range of available ledgers"
+  echo "* it was created in a ledger outside the range of available ledgers:"
+  if type jq > /dev/null
+  then
+    ledgers=$(rippled -q ${rpcip} server_info | jq -r \
+      '.result.info.complete_ledgers' )
+    echo "  ${ledgers}"
+  fi
   echo "* or it was created in ledger ${found} and had transactions"
   echo "  validated in that ledger, too."
 fi
