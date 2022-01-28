@@ -36,6 +36,17 @@ do
       validated | grep -e balance -e currency -e account -e index \
         -e limit -e quality -e error_message \
       | gawk '
+        function currencyname(c)
+        {
+          switch(c)
+          {
+            case "534F4C4F00000000000000000000000000000000":
+              return "SOLO";
+            case "0158415500000000C1F76FF6ECB0BAC600000000":
+              return "XAU";
+            default: return c;
+          }
+        }
         function gatewayname(c)
         {
           switch(c)
@@ -63,6 +74,8 @@ do
             case "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" :
             case "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP"  :
               return "Gatehub Fifth";
+            case "rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz" :
+              return "Sologenic  ";
             default: return c;
           }
         }
@@ -71,7 +84,7 @@ do
         ( /balance/ ) { balance = $3; }
         ( /limit/ && $3 > limit ) { limit = $3; }
         ( /currency/ ) { currency = $3; }
-        (/quality_out/ && balance != 0 ) { print currency " / " gatewayname(account) " : " balance " / " limit; }
+        (/quality_out/ && balance != 0 ) { print currencyname(currency) " / " gatewayname(account) " : " balance " / " limit; }
         ( balance == "" && account == "" ) { print; }
         ( /quality_out/ ) { balance=""; account=""; limit=0; }' \
     && ${RIPPLED} -q \
