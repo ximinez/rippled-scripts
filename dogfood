@@ -151,11 +151,10 @@ do
   if [ -e ~/.config/ripple/${network}.cfg ]
   then
     # Stop the currently running rippled, if any
-    tmux new-window -a -t rippled \
-      "${cmake_prefix}${rundir}/rippled \
-      --conf ~/.config/ripple/${network}.cfg stop"
+    "${cmake_prefix}${rundir}/rippled" \
+      --conf ~/.config/ripple/${network}.cfg stop || true
     # Start the new rippled
-    tmux new-window -a -t rippled "${gdb} \
+    tmux new-window -t rippled -n rippled "${gdb} \
       ${cmake_prefix}${rundir}/rippled \
       --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
