@@ -11,7 +11,7 @@ then
   # set -x
   ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
     sleep 600 || true
-  tmux new-window -d -a -t rippled -n dogfood \
+  tmux new-window -d -a -t rippled:$ -n dogfood \
     "${0}" "${@}"
   tmux set-option -w -t rippled:dogfood remain-on-exit on
   echo 'Running in tmux session. Use "tmux attach -t rippled" to join it'
@@ -154,7 +154,7 @@ do
     "${cmake_prefix}${rundir}/rippled" \
       --conf ~/.config/ripple/${network}.cfg stop || true
     # Start the new rippled
-    tmux new-window -t rippled -n rippled "${gdb} \
+    tmux new-window -a -t rippled:$ -n rippled "${gdb} \
       ${cmake_prefix}${rundir}/rippled \
       --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
