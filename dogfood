@@ -12,8 +12,8 @@ then
   ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
     sleep 600 || true
   tmux new-window -d -a -t rippled:$ -n dogfood \
-    "${0}" "${@}"
-  tmux set-option -w -t rippled:dogfood remain-on-exit on
+    "${0}" "${@}" wait
+  # tmux set-option -w -t rippled:dogfood remain-on-exit on
   echo 'Running in tmux session. Use "tmux attach -t rippled" to join it'
   exit
 fi
@@ -55,6 +55,10 @@ do
   then
     shift
     clean=1
+  elif [[ "$1" == "wait" ]]
+  then
+    shift
+    wait=1
   elif [[ ${#gdb} > 0 && "$1" == "--" ]]
   then
     shift
@@ -163,3 +167,8 @@ do
 done
 
 grep failures build/testrun.out
+
+if [[ -v wait ]]
+then
+  read -n 1 -p "Press any key to continue..." -s
+fi
