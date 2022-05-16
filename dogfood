@@ -145,7 +145,8 @@ ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
 sleep 2
 for network in rippled # rippled-altnet
 do
-  for file in debug.log logs/debug.log log/debug.log
+  for file in debug.log logs/debug.log log/debug.log \
+      perf.log logs/perf.log log/perf.log
   do
     if [ -e "${HOME}/${network}/${file}" ]
     then
