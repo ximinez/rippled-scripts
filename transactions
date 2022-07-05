@@ -75,7 +75,9 @@ do
     then
       backfill=$(( ${min} - ${next} ))
       echo rippled only has ${min}-${max}. Wait for backfill ${backfill} ledgers.
-      sleep $(( $backfill > 300 ? $backfill / 10 : 30 ))
+      wait=$(( $backfill > 300 ? $backfill / 10 : 30 ))
+      echo "Wait ${wait} seconds"
+      sleep ${wait}
       unset nextdelete
       break
     fi
