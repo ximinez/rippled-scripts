@@ -80,7 +80,7 @@ done
 
 if [[ ${#gdb} > 0 ]]
 then
-  gdb="${gdb} -ex run -ex quit --args"
+  gdb="${gdb} -ex run -ex generate-core-file -ex quit --args"
 fi
 
 nproc=$(nproc)
