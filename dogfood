@@ -80,7 +80,20 @@ done
 
 if [[ ${#gdb} > 0 ]]
 then
-  gdb="${gdb} -ex run -ex generate-core-file -ex quit --args"
+  gdbcommands=(
+    "run"
+    "generate-core-file"
+    "set pagination off"
+    "set logging enabled on"
+    "thread apply all bt full"
+    "set logging enabled off"
+    "quit"
+  )
+  for c in "${gdbcommands[@]}"
+  do
+    gdb+=" -ex ${c}"
+  done
+  gdb+=" --args"
 fi
 
 nproc=$(nproc)
