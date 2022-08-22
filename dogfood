@@ -1,12 +1,33 @@
 #!/bin/bash
 
+# DIR=msvc22.ON; CONFIG=Release ; tparam=( ) ; TEST=cmake/${DIR}/${CONFIG} && set -o pipefail && time SimpleRippledTestLoop "${tparam[@]}" && echo 'Built!' && for f in debug perf ; do if [ -f ~/rippled/log/${f}.log ] ; then mv -v ~/rippled/log/${f}.log{,$(date +'.%s')} ; fi; done && mv -vf ./build/${TEST}/rippled.exe ./build/ && time ( start ./build/rippled.exe --conf ~/.config/ripple/rippled.cfg- -net && echo 'Started?' || echo Uhoh) ; grep -e failures -e "1 failure" build/testrun.out
+
+nproc=$(nproc)
+
+unset windows
+
 terminal=
+if [[ "${OS}" =~ "Windows" ]]
+then
+  windows=1
+  configs=( Release Debug )
+  buildopt="-m"
+  launch="start"
+  launchdir="Release"
+else
+  configs=( "" )
+  buildopt="-j${nproc}"
+  launch="tmux new-window -a -t rippled:$ -n rippled"
+  launchdir=""
+fi
+
 tmuxopts="-d"
-if [[ -v DISPLAY ]]; then
+if [[ -v DISPLAY ]] && type -t gnome-terminal >& /dev/null
+then
   terminal="gnome-terminal --"
   tmuxopts=""
 fi
-if [[ ! -v TMUX ]]
+if [[ ! -v TMUX ]] && type -t tmux >& /dev/null
 then
   # set -x
   ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
@@ -28,6 +49,7 @@ cmake_dirs=$(\ls -r ${cmake_prefix})
 echo Dirs: ${cmake_dirs}
 cmake_targets="rippled"
 echo Targets: ${cmake_targets}
+echo "Configs: ${configs[@]}"
 rundir=$(\ls -r ${cmake_prefix} | head -1)
 echo rundir: ${rundir}
 
@@ -42,7 +64,7 @@ do
   then
     shift
     fast=1
-  elif [[ "$1" == "debug" ]]
+  elif [[ "$1" == "debug" ]] && type -t gdb >& /dev/null
   then
     shift
     gdb="gdb -q -ex 'tui enable' -ex 'winheight src -8' -ex 'set pagination off' "
@@ -96,8 +118,6 @@ then
   gdb+=" --args"
 fi
 
-nproc=$(nproc)
-
 time (
   set -o pipefail
   rm -fv build/testrun.out
@@ -115,8 +135,19 @@ time (
 
   set -x
   dir=${cmake_prefix}${rundir}
-  cmake --build $dir -- -j${nproc} |& tee -a build/testrun.out || exit 1
-  parallel_test=$( $dir/rippled --help |& grep -q unittest-jobs && \
+  unset config
+  if [[ -n "${launchdir}" ]]
+  then
+    config=( --config "${launchdir}" )
+  fi
+  src=$(pwd)
+  if pushd $dir
+  then
+    cmake "${src}"
+    popd
+  fi
+  cmake --build $dir ${config[@]} -- ${buildopt} |& tee -a build/testrun.out || exit 1
+  parallel_test=$( $dir/${launchdir}/rippled --help |& grep -q unittest-jobs && \
     echo "--testjobs=${nproc}" )
   set +x
 
@@ -128,17 +159,37 @@ time (
     for dir in ${cmake_dirs}
     do
       dir=${cmake_prefix}${dir}
+      src=$(pwd)
+      if pushd $dir
+      then
+        cmake "${src}"
+        popd
+      fi
       for target in ${cmake_targets}
       do
-        echo Building $target in $dir |& tee -a build/testrun.out
-        cmake --build $dir --target $target -- -j${nproc} \
-          |& tee -a build/testrun.out || exit 1
+        for config in "${configs[@]}"
+        do
+          echo Building $target in $dir |& tee -a build/testrun.out
+          if [[ -n "$config" ]]
+          then
+            echo "With configuration $config" |& tee -a build/testrun.out
+            config="--config $config"
+          fi
+          cmake --build $dir --target $target $config -- ${buildopt} \
+            |& tee -a build/testrun.out || exit 1
+        done
       done
     done || exit 1
   else
     set -x
+    unset config
+    if [[ -n "${configs[@]}" ]]
+    then
+      config=( --config "${configs[@]}" )
+    fi
     ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets} \
-      ${parallel_test} -- -j${nproc} |& tee build/testrun.out || exit 1
+      "${config[@]}" \
+      ${parallel_test} -- ${buildopt} |& tee -a build/testrun.out || exit 1
     set +x
   fi
 
@@ -152,10 +203,13 @@ fi
 set -x
 
 ulimit -c unlimited
-${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
-  sleep 600 || true
-# Give the terminal a few seconds to create
-sleep 2
+if type -t tmux >& /dev/null
+then
+  ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
+    sleep 600 || true
+  # Give the terminal a few seconds to create
+  sleep 2
+fi
 for network in rippled # rippled-altnet
 do
   for file in debug.log logs/debug.log log/debug.log \
@@ -169,11 +223,11 @@ do
   if [ -e ~/.config/ripple/${network}.cfg ]
   then
     # Stop the currently running rippled, if any
-    "${cmake_prefix}${rundir}/rippled" \
+    "${cmake_prefix}${rundir}/${launchdir}/rippled" \
       --conf ~/.config/ripple/${network}.cfg stop || true
     # Start the new rippled
-    tmux new-window -a -t rippled:$ -n rippled "${gdb} \
-      ${cmake_prefix}${rundir}/rippled \
+    ${launch} "${gdb} \
+      ${cmake_prefix}${rundir}/${launchdir}/rippled \
       --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
       : 'C-x a'
