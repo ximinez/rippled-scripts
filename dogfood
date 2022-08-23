@@ -12,14 +12,17 @@ then
   windows=1
   configs=( Release Debug )
   buildopt="-m"
-  launch="start"
+  launch=( start )
   launchdir="Release"
 else
   configs=( "" )
   buildopt="-j${nproc}"
-  launch="tmux new-window -a -t rippled:$ -n rippled"
+  launch=( tmux new-window -a -t rippled:$ -n rippled )
   launchdir=""
 fi
+
+logfile="$(pwd)/build/testrun.out"
+rm -fv "${logfile}"
 
 tmuxopts="-d"
 if [[ -v DISPLAY ]] && type -t gnome-terminal >& /dev/null
@@ -30,10 +33,14 @@ fi
 if [[ ! -v TMUX ]] && type -t tmux >& /dev/null
 then
   # set -x
-  ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
-    sleep 600 || true
-  tmux new-window -d -a -t rippled:$ -n dogfood \
-    "${0}" "${@}" wait
+  cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
+    sleep 600 )
+  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+  "${cmd[@]}" || true
+  cmd=( tmux new-window -d -a -t rippled:$ -n dogfood \
+    "${0}" "${@}" wait )
+  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+  "${cmd[@]}" || true
   # tmux set-option -w -t rippled:dogfood remain-on-exit on
   echo 'Running in tmux session. Use "tmux attach -t rippled" to join it'
   exit
@@ -53,8 +60,8 @@ echo "Configs: ${configs[@]}"
 rundir=$(\ls -r ${cmake_prefix} | head -1)
 echo rundir: ${rundir}
 
-gdb=""
-gdbextra=""
+gdb=()
+gdbextra=()
 clean=0
 fast=0
 test=0
@@ -67,8 +74,8 @@ do
   elif [[ "$1" == "debug" ]] && type -t gdb >& /dev/null
   then
     shift
-    gdb="gdb -q -ex 'tui enable' -ex 'winheight src -8' -ex 'set pagination off' "
-    gdbextra="--fg"
+    gdb=( gdb -q )
+    gdbextra=( --fg )
   elif [[ "$1" == "test" ]]
   then
     shift
@@ -81,12 +88,12 @@ do
   then
     shift
     wait=1
-  elif [[ ${#gdb} > 0 && "$1" == "--" ]]
+  elif [[ ${#gdb[@]} > 0 && "$1" == "--" ]]
   then
     shift
     if [[ "${#@}" ]]
     then
-      gdb="${gdb} ${@} "
+      gdb+=( "${@}" )
       shift "${#@}"
     fi
   elif [[ -d "${cmake_prefix}$1" ]]
@@ -100,12 +107,14 @@ do
   fi
 done
 
-if [[ ${#gdb} > 0 ]]
+if [[ ${#gdb[@]} > 0 ]]
 then
   gdbcommands=(
+    'tui enable'
+    'winheight src -8'
+    'set pagination off'
     "run"
     "generate-core-file"
-    "set pagination off"
     "set logging enabled on"
     "thread apply all bt full"
     "set logging enabled off"
@@ -113,20 +122,21 @@ then
   )
   for c in "${gdbcommands[@]}"
   do
-    gdb+=" -ex ${c}"
+    gdb+=( -ex "${c}" )
   done
-  gdb+=" --args"
+  gdb+=( "--args" )
 fi
 
 time (
   set -o pipefail
-  rm -fv build/testrun.out
   if [[ ${clean} != 0 ]]
   then
     for dir in ${cmake_dirs}
     do
       dir=${cmake_prefix}${dir}
-      cmake --build $dir --target clean |& tee -a build/testrun.out || exit 1
+      cmd=( cmake --build $dir --target clean )
+      echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+      "${cmd[@]}" |& tee -a "${logfile}" || exit 1
     done
   fi
 
@@ -143,15 +153,20 @@ time (
   src=$(pwd)
   if pushd $dir
   then
-    cmake "${src}"
+    cmd=( cmake "${src}" )
+    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+    "${cmd[@]}" |& tee -a "${logfile}" || exit 1
     popd
   fi
-  cmake --build $dir ${config[@]} -- ${buildopt} |& tee -a build/testrun.out || exit 1
-  parallel_test=$( $dir/${launchdir}/rippled --help |& grep -q unittest-jobs && \
+  cmd=( cmake --build $dir "${config[@]}" -- ${buildopt} )
+  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+  "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+  parallel_test=$( $dir/${launchdir}/rippled --help |& \
+    grep -q unittest-jobs && \
     echo "--testjobs=${nproc}" )
   set +x
 
-  echo Parallel: ${parallel_test} |& tee -a build/testrun.out
+  echo Parallel: ${parallel_test} |& tee -a "${logfile}"
 
   # CMake
   if [[ ${fast} != 0 ]]
@@ -162,21 +177,24 @@ time (
       src=$(pwd)
       if pushd $dir
       then
-        cmake "${src}"
+        cmd=( cmake "${src}" )
+        echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+        "${cmd[@]}" |& tee -a "${logfile}" || exit 1
         popd
       fi
       for target in ${cmake_targets}
       do
         for config in "${configs[@]}"
         do
-          echo Building $target in $dir |& tee -a build/testrun.out
+          echo Building $target in $dir |& tee -a "${logfile}"
           if [[ -n "$config" ]]
           then
-            echo "With configuration $config" |& tee -a build/testrun.out
+            echo "With configuration $config" |& tee -a "${logfile}"
             config="--config $config"
           fi
-          cmake --build $dir --target $target $config -- ${buildopt} \
-            |& tee -a build/testrun.out || exit 1
+          cmd=( cmake --build $dir --target $target $config -- ${buildopt} )
+          echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+          "${cmd[@]}" |& tee -a "${logfile}" || exit 1
         done
       done
     done || exit 1
@@ -187,9 +205,10 @@ time (
     then
       config=( --config "${configs[@]}" )
     fi
-    ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets} \
-      "${config[@]}" \
-      ${parallel_test} -- ${buildopt} |& tee -a build/testrun.out || exit 1
+    cmd=( ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets}
+      "${config[@]}" ${parallel_test} -- ${buildopt} )
+    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+    "${cmd[@]}" |& tee -a "${logfile}" || exit 1
     set +x
   fi
 
@@ -205,8 +224,10 @@ set -x
 ulimit -c unlimited
 if type -t tmux >& /dev/null
 then
-  ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
-    sleep 600 || true
+  cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30
+    sleep 600 )
+  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+  "${cmd[@]}" || true
   # Give the terminal a few seconds to create
   sleep 2
 fi
@@ -220,21 +241,28 @@ do
       mv -vi "${HOME}/${network}/${file}"{,.$(date '+%s')} || true
     fi
   done
-  if [ -e ~/.config/ripple/${network}.cfg ]
+  file="${HOME}/.config/ripple/${network}.cfg"
+  if [ -e "${file}" ]
   then
     # Stop the currently running rippled, if any
-    "${cmake_prefix}${rundir}/${launchdir}/rippled" \
-      --conf ~/.config/ripple/${network}.cfg stop || true
+    cmd=( "${cmake_prefix}${rundir}/${launchdir}/rippled"
+      --conf "${file}" stop )
+    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+    "${cmd[@]}" || true
     # Start the new rippled
-    ${launch} "${gdb} \
-      ${cmake_prefix}${rundir}/${launchdir}/rippled \
-      --conf ~/.config/ripple/${network}.cfg --net ${gdbextra}"
+    cmd=( "${launch[@]}" "${gdb[@]}"
+      "${cmake_prefix}${rundir}/${launchdir}/rippled"
+      --conf ${file} --net "${gdbextra[@]}" )
+    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+    "${cmd[@]}"
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
       : 'C-x a'
+  else
+    echo "Error: config file not found: ${file}"
   fi
 done
 
-grep failures build/testrun.out
+grep failures "${logfile}"
 
 if [[ -v wait ]]
 then
