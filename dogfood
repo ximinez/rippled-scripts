@@ -76,6 +76,10 @@ do
     shift
     gdb=( gdb -q )
     gdbextra=( --fg )
+  elif [[ "$1" == "debug" && -n "${launchdir}" ]]
+  then
+    shift
+    launchdir="Debug"
   elif [[ "$1" == "test" ]]
   then
     shift
