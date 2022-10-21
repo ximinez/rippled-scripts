@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
@@ -7,14 +7,101 @@ PEER_PORT=${4:-51235}
 
 echo $RIPPLED $RPC_PORT $PEER_PORT
 
-gnome-terminal --window-with-profile=Unnamed -t server_info --command="watch -c -d  server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
-  --tab-with-profile=Persistent -t balance --command="watch -d=permanent balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
-  --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
-  --tab-with-profile=Persistent -t peerfinder --command="watch -d \"${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
-  --tab-with-profile=Persistent -t get_counts --command="watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1" \
-  --tab-with-profile=Persistent -t crawl --command="watch -d curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
-  --tab-with-profile=Persistent -t vl --command="watch -d curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
-  --tab-with-profile=Persistent -t top --command="top" \
-  --tab-with-profile=Persistent -t bandwidth --command="redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv" \
-  --tab-with-profile=Persistent -t fee --command="watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
+if type -t tmux >& /dev/null
+then
+  tmuxcommand=( tmux new-window -d -a -t monitor:$ )
 
+  if [[ ! -v TMUX ]]
+  then
+    cmd=( tmux new-session -d -s monitor sleep 600 )
+    echo "Run: ${cmd[@]}"
+    "${cmd[@]}" || true
+  fi
+
+  cmd=( "${tmuxcommand[@]}"
+    -n server_info
+    watch -c -d server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT} )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n balance
+    watch -d=permanent balance ${RIPPLED} ${RPC_IP} ${RPC_PORT} )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n transactions
+    $( dirname $0)/redirect
+    "transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}"
+    ${HOME}/rippled/transactions-output.txt )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+  tmux set-option -w -t monitor:transactions remain-on-exit on
+  # --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
+
+  cmd=( "${tmuxcommand[@]}"
+    -n peerfinder
+    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq
+    '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'"
+    )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n get_counts
+    watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1 )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n crawl
+    watch -d curl -k https://${RPC_IP}:${PEER_PORT}/crawl )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n vl
+    watch -d curl -k
+    https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734
+    )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n top
+    top )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n bandwidth
+    redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv
+    )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
+    -n fee
+    watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  if [[ ! -v TMUX ]]
+  then
+    cmd=( tmux attach -t monitor )
+    echo "Run: ${cmd[@]}"
+    "${cmd[@]}"
+  fi
+else
+  gnome-terminal --window-with-profile=Unnamed -t server_info --command="watch -c -d  server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
+    --tab-with-profile=Persistent -t balance --command="watch -d=permanent balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
+    --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
+    --tab-with-profile=Persistent -t peerfinder --command="watch -d \"${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
+    --tab-with-profile=Persistent -t get_counts --command="watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1" \
+    --tab-with-profile=Persistent -t crawl --command="watch -d curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
+    --tab-with-profile=Persistent -t vl --command="watch -d curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
+    --tab-with-profile=Persistent -t top --command="top" \
+    --tab-with-profile=Persistent -t bandwidth --command="redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv" \
+    --tab-with-profile=Persistent -t fee --command="watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
+fi
