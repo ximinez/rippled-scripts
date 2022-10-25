@@ -4,8 +4,22 @@ RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
 RPC_PORT=${3:-5015}
 PEER_PORT=${4:-51235}
+shift 4
+unset LAST_LEDGER_FILE
+if [[ $# -gt 0 ]]
+then
+  if [[ -f "${1}" ]]
+  then
+    LAST_LEDGER_FILE="${1}"
+    shift
+  else
+    echo "File not found: ${1}"
+    exit 1
+  fi
+fi
 
-echo $RIPPLED $RPC_PORT $PEER_PORT
+
+# echo $RIPPLED $RPC_PORT $PEER_PORT
 
 if type -t tmux >& /dev/null
 then
@@ -33,11 +47,11 @@ then
   cmd=( "${tmuxcommand[@]}"
     -n transactions
     $( dirname $0)/redirect
-    "transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}"
+    "transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT} ${LAST_LEDGER_FILE}"
     ${HOME}/rippled/transactions-output.txt )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
-  tmux set-option -w -t monitor:transactions remain-on-exit on
+  # tmux set-option -w -t monitor:transactions remain-on-exit on
   # --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
 
   cmd=( "${tmuxcommand[@]}"

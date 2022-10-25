@@ -6,6 +6,19 @@ rpc_ip=${1:-"127.0.0.1:5015"}
 ssh_host=${2:-localhost}
 rpc_private=${3:-5015}
 shift 3
+unset file
+if [[ $# -gt 0 ]]
+then
+  if [[ -f "${1}" ]]
+  then
+    file="${1}"
+    echo "Tracking last ledger using ${1}"
+    shift
+  else
+    echo "File not found: ${1}"
+    exit 1
+  fi
+fi
 
 accounts=( rHb9CJAWyB4rj91VRWn96DkukG4bwdtyTh )
 for accountfile in "$( dirname $0 )/ripple-account.txt" "$( dirname $0 )/ripple-accounts.txt"
@@ -22,7 +35,15 @@ done
 can_delete()
 {
   set -o pipefail
-  if [[ ${ssh_host} == $( hostname ) ]] || [[ ${ssh_host} == "localhost" ]]
+  if [[ -v file ]]
+  then
+    if [[ $# -eq 0 ]]
+    then
+      cat "${file}"
+    else
+      echo "${@}" > "${file}"
+    fi
+  elif [[ ${ssh_host} == $( hostname ) ]] || [[ ${ssh_host} == "localhost" ]]
   then
     ~/bin/rippled -q --rpc_ip=127.0.0.1:${rpc_private} can_delete $* | \
       jq '.result.can_delete'
@@ -98,7 +119,7 @@ do
   then
     can_delete ${nextdelete}
     next=$(( ${nextdelete} + 1 ))
-    echo Updated can_delete to $( can_delete )
+    echo Updated can_delete to $( can_delete ). Wait 30 seconds.
 
     # Delay enough time for a new ledger to close.
     sleep 30
