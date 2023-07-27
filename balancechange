@@ -1,7 +1,30 @@
 #!/bin/bash
 
+# Parses the output of `rippled account_tx` and `rippled tx`
+
+if [[ $# -gt 0 ]] ; then
+  for file in "${@}" ; do
+    echo "${file}"
+    ${0} < "${file}"
+  done
+  exit
+fi
+
 jq '
+def tolocaltime: strflocaltime("%Y-%m-%d, %I:%M:%S %p (%Z)") ;
 def dropstoxrp: tonumber / 1000000 | tostring + " XRP" ;
+def currencyname:
+(
+  (
+    if . == "534F4C4F00000000000000000000000000000000" then
+      "SOLO"
+    elif . == "0158415500000000C1F76FF6ECB0BAC600000000" then
+      "XAU"
+    else
+      empty
+    end
+  ) // .
+);
 def exchangename:
 (
   (
@@ -28,6 +51,8 @@ def exchangename:
         . == "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" or
         . == "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP" then
       "Gatehub Fifth"
+    elif . == "rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz" then
+      "Sologenic"
     else
       empty
     end
@@ -47,7 +72,7 @@ def stamount:
   if type == "string" then
     dropstoxrp
   elif has("currency") then
-    ( .value | tostring )+ " " + .currency + "/" + ( .issuer | accountname )
+    ( .value | tostring )+ " " + ( .currency | currencyname ) + "/" + ( .issuer | accountname )
   else
     .
   end
@@ -80,7 +105,8 @@ def previousbalance:
 (
   if . == null then
     0
-  elif .PreviousFields == null and .FinalFields != null then
+  elif ( .PreviousFields == null or .PreviousFields.Balance == null)
+      and .FinalFields != null then
     .FinalFields | balance
   else
     .PreviousFields | balance
@@ -88,14 +114,43 @@ def previousbalance:
 );
 def rippleepoch: "2000-01-01T0:00:00Z" | fromdate ;
 def fromrippletime: . + rippleepoch ;
-.result.transactions |
-map(
+def unhexone:
+(
+  explode
+  | map(
+    if . >= 97 and . <= 122 then
+      . - 97 + 10
+    elif . >= 65 and . <= 90 then
+      . - 65 + 10
+    elif . >= 48 and . <= 57 then
+      . - 48
+    else
+      null
+    end
+  )
+  | .[]
+);
+def unhextwo:
+  [ ( ( .[0:1] | unhexone ) * 16) + ( .[1:2] | unhexone ) ] | implode
+;
+def unhex:
+  [., null] |
+  until(
+    (.[0] | length) == 0 ;
+    [ .[0][2:], .[1] + ( .[0][0:2] | unhextwo ) ]
+  ) |
+  .[1]
+;
+def parsetxinfo:
   {
-    validated,
-    ( .tx.TransactionType ) : ( .tx.Account | accountname ),
-    "hash": .tx.hash,
-    "ledger": ( "#" + ( .tx.ledger_index | tostring ) + " @ " +
-      ( .tx.date | fromrippletime | todate ) ),
+    ( .TransactionType ) : ( .Account | accountname ),
+    "hash": .hash,
+    "ledger": ( "#" + ( .ledger_index | tostring ) + " @ " +
+      ( .date | fromrippletime | tolocaltime ) ),
+  }
+;
+def parsetxresult:
+  {
     "changes": (
       .meta.AffectedNodes |
       map(
@@ -121,7 +176,7 @@ map(
           . + {
             change: {
               value: ( finalbalance - previousbalance ),
-              currency: resultFields | .Balance.currency,
+              currency: resultFields | .Balance.currency | currencyname,
               highIssuer: resultFields | .HighLimit.issuer,
               lowIssuer: resultFields | .LowLimit.issuer,
             }
@@ -148,7 +203,7 @@ map(
               )
             } ) )
           } |
-          if .change.useHighIssuer | not then
+          if ( .change.useHighIssuer | not ) and .change.value != 0 then
             . + {
               change: ( .change + ( .change | {
                 value: -.value,
@@ -166,10 +221,24 @@ map(
             .[] | resultFields |
             {
               Offer: ( "Sell: " + ( .TakerGets | stamount ) + " for " +
-                ( .TakerPays | stamount ) )
+                ( .TakerPays | stamount ) +
+                ( if .Expiration then ( ", expires: " + (.Expiration
+                  | fromrippletime | tolocaltime ) ) else null end
+                )
+              )
             }
           )
           # + .
+        elif .[] | .LedgerEntryType == "Escrow" then
+          (
+            .[] | resultFields |
+            {
+              Destination: ( .Destination | accountname ),
+              Amount: ( .Amount | stamount ),
+              FinishAfter: ( .FinishAfter | fromrippletime | tolocaltime ),
+              CancelAfter: ( .CancelAfter | fromrippletime | tolocaltime )
+            }
+          )
         elif .[] | .LedgerEntryType == "DirectoryNode" then
           empty
         else
@@ -192,6 +261,72 @@ map(
       )
     )
   }
-)
-| .[]
+;
+def parsememos:
+  if has("Memos") then
+    {
+      memos: (
+        .Memos | map
+        ( .Memo |
+          {
+            MemoData: .MemoData | unhex,
+            MemoFormat: .MemoFormat | unhex,
+            MemoType: .MemoType | unhex
+          }
+        )
+      )
+    }
+  else
+    null
+  end
+;
+def parsedelivered:
+  if has("delivered_amount") then
+    {
+      "delivered_amount": .delivered_amount | stamount
+    }
+  else
+    null
+  end
+;
+if has("result") then
+  .result |
+  if has("transactions") then
+    .transactions |
+    map(
+      { validated }
+      + (
+        .tx | parsetxinfo
+      )
+      + parsetxresult
+      + (
+        .tx | parsememos
+      )
+      + (
+        .meta | parsedelivered
+      )
+    )
+    | .[]
+  elif has("meta") then
+    { validated }
+    + parsetxinfo
+    + parsetxresult
+    + parsememos
+    + (
+      .meta | parsedelivered
+    )
+  else
+    "Unknown format"
+  end
+elif has("meta") then
+  { validated }
+  + parsetxinfo
+  + parsetxresult
+  + parsememos
+  + (
+    .meta | parsedelivered
+  )
+else
+  "Unknown format"
+end
 '
