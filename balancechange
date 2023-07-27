@@ -178,7 +178,11 @@ def parsetxresult:
               value: ( finalbalance - previousbalance ),
               currency: resultFields | .Balance.currency | currencyname,
               highIssuer: resultFields | .HighLimit.issuer,
+              highQIn: resultFields | .HighQualityIn,
+              highQOut: resultFields | .HighQualityOut,
               lowIssuer: resultFields | .LowLimit.issuer,
+              lowQIn: resultFields | .LowQualityIn,
+              lowQOut: resultFields | .LowQualityOut,
             }
           } |
           . + {
@@ -212,10 +216,45 @@ def parsetxresult:
           else
             .
           end |
+          if .change.useHighIssuer then
+            . + {
+              change: ( .change + ( .change | {
+                qIn: .lowQIn,
+                qOut: .lowQOut,
+              } ) )
+            }
+          else
+            . + {
+              change: ( .change + ( .change | {
+                qIn: .highQIn,
+                qOut: .highQOut,
+              } ) )
+            }
+          end |
             {
               balancechange: ( .change | stamount ),
               "for": ( .change.other | accountname ),
             }
+            + (
+              if .change | ( has("qIn") and .qIn )
+              then
+                {
+                  qInPct : ( ( .change.qIn / 10000000 ) | tostring + "%" ),
+                }
+              else
+                null
+              end
+            )
+            + (
+              if .change | ( has("qOut") and .qOut )
+              then
+                {
+                  qOutPct : ( ( .change.qOut / 10000000 ) | tostring + "%" )
+                }
+              else
+                null
+              end
+            )
         elif .[] | .LedgerEntryType == "Offer" then
           (
             .[] | resultFields |
@@ -268,11 +307,28 @@ def parsememos:
       memos: (
         .Memos | map
         ( .Memo |
+          (
+          if (has("MemoData") and .MemoData)
+          then
           {
             MemoData: .MemoData | unhex,
+          }
+          else null end
+          +
+          if (has("MemoFormat") and .MemoFormat)
+          then
+          {
             MemoFormat: .MemoFormat | unhex,
+          }
+          else null end
+          +
+          if (has("MemoType") and .MemoType)
+          then
+          {
             MemoType: .MemoType | unhex
           }
+          else null end
+          )
         )
       )
     }
