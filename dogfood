@@ -119,6 +119,8 @@ then
     'set pagination off'
     "run"
     "generate-core-file"
+    "set logging file gdb.$( date +%s ).txt"
+    "set logging overwrite on"
     "set logging enabled on"
     "thread apply all bt full"
     "set logging enabled off"
