@@ -111,6 +111,7 @@ do
   fi
 done
 
+datestamp=$( date +%s )
 if [[ ${#gdb[@]} > 0 ]]
 then
   gdbcommands=(
@@ -118,8 +119,8 @@ then
     'winheight src -8'
     'set pagination off'
     "run"
-    "generate-core-file"
-    "set logging file gdb.$( date +%s ).txt"
+    "generate-core-file build/${datestamp}"
+    "set logging file build/gdb.${datestamp}.txt"
     "set logging overwrite on"
     "set logging enabled on"
     "thread apply all bt full"
@@ -244,7 +245,7 @@ do
   do
     if [ -e "${HOME}/${network}/${file}" ]
     then
-      mv -vi "${HOME}/${network}/${file}"{,.$(date '+%s')} || true
+      mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
     fi
   done
   file="${HOME}/.config/ripple/${network}.cfg"
