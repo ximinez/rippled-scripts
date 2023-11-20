@@ -119,7 +119,7 @@ then
     'winheight src -8'
     'set pagination off'
     "run"
-    "generate-core-file build/${datestamp}"
+    "generate-core-file build/core.${datestamp}"
     "set logging file build/gdb.${datestamp}.txt"
     "set logging overwrite on"
     "set logging enabled on"
