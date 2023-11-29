@@ -248,24 +248,40 @@ do
       mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
     fi
   done
-  file="${HOME}/.config/ripple/${network}.cfg"
-  if [ -e "${file}" ]
+  cfgfile="${HOME}/.config/ripple/${network}.cfg"
+  if [ -e "${cfgfile}" ]
   then
+    runpath="${cmake_prefix}${rundir}/${launchdir}"
+    for runfile in rippled{.exe,}
+    do
+      if [[ -f "${runpath}/${runfile}" ]]
+      then
+        exe="${runpath}/${runfile}"
+        break
+      fi
+    done
+    if [[ ! -f "${exe}" ]]
+    then
+      echo "Error: Expected executable not found: ${runfile}"
+      break
+    fi
     # Stop the currently running rippled, if any
-    cmd=( "${cmake_prefix}${rundir}/${launchdir}/rippled"
-      --conf "${file}" stop )
+    cmd=( "${exe}" --conf "${cfgfile}" stop )
+    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+    "${cmd[@]}" || true
+    # Save the executable
+    cmd=( cp "${exe}" "build/${runfile}.${datestamp}" )
     echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
     "${cmd[@]}" || true
     # Start the new rippled
     cmd=( "${launch[@]}" "${gdb[@]}"
-      "${cmake_prefix}${rundir}/${launchdir}/rippled"
-      --conf ${file} --net "${gdbextra[@]}" )
+      "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}" )
     echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
     "${cmd[@]}"
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
       : 'C-x a'
   else
-    echo "Error: config file not found: ${file}"
+    echo "Error: config file not found: ${cfgfile}"
   fi
 done
 
