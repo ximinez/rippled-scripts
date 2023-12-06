@@ -64,13 +64,18 @@ gdb=()
 gdbextra=()
 clean=0
 fast=0
+build=1
 test=0
 while [[ ${#@} > 0 ]]
 do
-  if [[ "$1" == "fast" ]]
+  if [[ "$1" == "fast" || "$1" == "notest" ]]
   then
     shift
     fast=1
+  elif [[ "$1" == "nobuild" ]]
+  then
+    shift
+    build=0
   elif [[ "$1" == "debug" ]] && type -t gdb >& /dev/null
   then
     shift
@@ -175,48 +180,51 @@ time (
 
   echo Parallel: ${parallel_test} |& tee -a "${logfile}"
 
-  # CMake
-  if [[ ${fast} != 0 ]]
+  if [[ ${build} != 0 ]]
   then
-    for dir in ${cmake_dirs}
-    do
-      dir=${cmake_prefix}${dir}
-      src=$(pwd)
-      if pushd $dir
-      then
-        cmd=( cmake "${src}" )
-        echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
-        "${cmd[@]}" |& tee -a "${logfile}" || exit 1
-        popd
-      fi
-      for target in ${cmake_targets}
+    # CMake
+    if [[ ${fast} != 0 ]]
+    then
+      for dir in ${cmake_dirs}
       do
-        for config in "${configs[@]}"
-        do
-          echo Building $target in $dir |& tee -a "${logfile}"
-          if [[ -n "$config" ]]
-          then
-            echo "With configuration $config" |& tee -a "${logfile}"
-            config="--config $config"
-          fi
-          cmd=( cmake --build $dir --target $target $config -- ${buildopt} )
+        dir=${cmake_prefix}${dir}
+        src=$(pwd)
+        if pushd $dir
+        then
+          cmd=( cmake "${src}" )
           echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
           "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+          popd
+        fi
+        for target in ${cmake_targets}
+        do
+          for config in "${configs[@]}"
+          do
+            echo Building $target in $dir |& tee -a "${logfile}"
+            if [[ -n "$config" ]]
+            then
+              echo "With configuration $config" |& tee -a "${logfile}"
+              config="--config $config"
+            fi
+            cmd=( cmake --build $dir --target $target $config -- ${buildopt} )
+            echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+            "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+          done
         done
-      done
-    done || exit 1
-  else
-    set -x
-    unset config
-    if [[ -n "${configs[@]}" ]]
-    then
-      config=( --config "${configs[@]}" )
+      done || exit 1
+    else
+      set -x
+      unset config
+      if [[ -n "${configs[@]}" ]]
+      then
+        config=( --config "${configs[@]}" )
+      fi
+      cmd=( ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets}
+        "${config[@]}" ${parallel_test} -- ${buildopt} )
+      echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+      "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+      set +x
     fi
-    cmd=( ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets}
-      "${config[@]}" ${parallel_test} -- ${buildopt} )
-    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
-    "${cmd[@]}" |& tee -a "${logfile}" || exit 1
-    set +x
   fi
 
 ) || exit 1
