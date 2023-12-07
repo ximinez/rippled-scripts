@@ -117,27 +117,6 @@ do
 done
 
 datestamp=$( date +%s )
-if [[ ${#gdb[@]} > 0 ]]
-then
-  gdbcommands=(
-    'tui enable'
-    'winheight src -8'
-    'set pagination off'
-    "run"
-    "generate-core-file build/core.${datestamp}"
-    "set logging file build/gdb.${datestamp}.txt"
-    "set logging overwrite on"
-    "set logging enabled on"
-    "thread apply all bt full"
-    "set logging enabled off"
-    "quit"
-  )
-  for c in "${gdbcommands[@]}"
-  do
-    gdb+=( -ex "${c}" )
-  done
-  gdb+=( "--args" )
-fi
 
 time (
   set -o pipefail
@@ -273,6 +252,35 @@ do
       echo "Error: Expected executable not found: ${runfile}"
       break
     fi
+
+    if [[ ${#gdb[@]} > 0 ]]
+    then
+      temp=(
+        'set pagination off'
+        "run"
+        'tui enable'
+        'winheight src -8'
+        "generate-core-file build/core.${datestamp}"
+        "set logging file build/gdb.${datestamp}.txt"
+        # "set logging overwrite on"
+        "set logging enabled on"
+        "thread apply all bt full"
+        # "set logging enabled off"
+        "quit"
+        # "info break"
+        # "delete 2"
+        # "fg"
+        # "thread apply all bt full"
+        # "set logging enabled off"
+      )
+      gdbcommands=()
+      for c in "${temp[@]}"
+      do
+        gdbcommands+=( -ex "${c}" )
+      done
+      gdbcommands+=( "--args" )
+    fi
+
     # Stop the currently running rippled, if any
     cmd=( "${exe}" --conf "${cfgfile}" stop )
     echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
@@ -282,7 +290,7 @@ do
     echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
     "${cmd[@]}" || true
     # Start the new rippled
-    cmd=( "${launch[@]}" "${gdb[@]}"
+    cmd=( "${launch[@]}" "${gdb[@]}" "${gdbcommands[@]}"
       "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}" )
     echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
     "${cmd[@]}"
