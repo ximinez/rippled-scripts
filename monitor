@@ -23,6 +23,11 @@ fi
 
 if type -t tmux >& /dev/null
 then
+  if tmux attach -t monitor
+  then
+    exit
+  fi
+
   tmuxcommand=( tmux new-window -d -a -t monitor:$ )
 
   if [[ ! -v TMUX ]]
@@ -100,6 +105,14 @@ then
     watch -c -d ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
+
+  cmd=( tmux select-window -t monitor:server_info )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}"
+
+  cmd=( tmux kill-window -t monitor:sleep )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}"
 
   if [[ ! -v TMUX ]]
   then
