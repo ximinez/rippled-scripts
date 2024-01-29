@@ -41,6 +41,12 @@ then
     "${0}" "${@}" wait )
   echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
   "${cmd[@]}" || true
+  cmd=( tmux select-window -t rippled:dogfood )
+  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+  "${cmd[@]}" || true
+  cmd=( tmux kill-window -t rippled:sleep )
+  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+  "${cmd[@]}" || true
   # tmux set-option -w -t rippled:dogfood remain-on-exit on
   echo 'Running in tmux session. Use "tmux attach -t rippled" to join it'
   exit
