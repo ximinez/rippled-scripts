@@ -82,15 +82,15 @@ do
   then
     shift
     build=0
+  elif [[ "$1" == "debug" && -n "${launchdir}" ]]
+  then
+    shift
+    launchdir="Debug"
   elif [[ "$1" == "debug" ]] && type -t gdb >& /dev/null
   then
     shift
     gdb=( gdb -q )
     gdbextra=( --fg )
-  elif [[ "$1" == "debug" && -n "${launchdir}" ]]
-  then
-    shift
-    launchdir="Debug"
   elif [[ "$1" == "test" ]]
   then
     shift
@@ -137,9 +137,6 @@ time (
     done
   fi
 
-  # Determine if parallel unit tests are enabled.
-  parallel_test=''
-
   set -x
   dir=${cmake_prefix}${rundir}
   unset config
@@ -155,18 +152,21 @@ time (
     "${cmd[@]}" |& tee -a "${logfile}" || exit 1
     popd
   fi
-  cmd=( cmake --build $dir "${config[@]}" -- ${buildopt} )
-  echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
-  "${cmd[@]}" |& tee -a "${logfile}" || exit 1
-  parallel_test=$( $dir/${launchdir}/rippled --help |& \
-    grep -q unittest-jobs && \
-    echo "--testjobs=${nproc}" )
-  set +x
-
-  echo Parallel: ${parallel_test} |& tee -a "${logfile}"
-
   if [[ ${build} != 0 ]]
   then
+    # Determine if parallel unit tests are enabled.
+    parallel_test=''
+
+    cmd=( cmake --build $dir "${config[@]}" -- ${buildopt} )
+    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+    "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+    parallel_test=$( $dir/${launchdir}/rippled --help |& \
+      grep -q unittest-jobs && \
+      echo "--testjobs=${nproc}" )
+    set +x
+
+    echo Parallel: ${parallel_test} |& tee -a "${logfile}"
+
     # CMake
     if [[ ${fast} != 0 ]]
     then
