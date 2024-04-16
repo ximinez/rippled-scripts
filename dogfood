@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# DIR=msvc22.ON; CONFIG=Release ; tparam=( ) ; TEST=cmake/${DIR}/${CONFIG} && set -o pipefail && time SimpleRippledTestLoop "${tparam[@]}" && echo 'Built!' && for f in debug perf ; do if [ -f ~/rippled/log/${f}.log ] ; then mv -v ~/rippled/log/${f}.log{,$(date +'.%s')} ; fi; done && mv -vf ./build/${TEST}/rippled.exe ./build/ && time ( start ./build/rippled.exe --conf ~/.config/ripple/rippled.cfg- -net && echo 'Started?' || echo Uhoh) ; grep -e failures -e "1 failure" build/testrun.out
-
 nproc=$(nproc)
 
 unset windows
@@ -21,7 +19,7 @@ else
   launchdir=""
 fi
 
-logfile="$(pwd)/build/testrun.out"
+logfile="$(pwd)/build/dogfood.out"
 rm -fv "${logfile}"
 
 tmuxopts="-d"
@@ -70,7 +68,7 @@ gdb=()
 gdbextra=()
 clean=0
 fast=0
-build=1
+build=yes
 test=0
 while [[ ${#@} > 0 ]]
 do
@@ -81,7 +79,11 @@ do
   elif [[ "$1" == "nobuild" ]]
   then
     shift
-    build=0
+    build=no
+  elif [[ "$1" == "onlyrun" || "$1" == "runonly" || "$1" == "one" ]]
+  then
+    shift
+    build=run
   elif [[ "$1" == "debug" && -n "${launchdir}" ]]
   then
     shift
@@ -122,6 +124,11 @@ do
   fi
 done
 
+if [[ "$build" == "run" ]]
+then
+  cmake_dirs="${rundir}"
+fi
+
 datestamp=$( date +%s )
 
 time (
@@ -137,39 +144,33 @@ time (
     done
   fi
 
-  set -x
-  dir=${cmake_prefix}${rundir}
-  unset config
-  if [[ -n "${launchdir}" ]]
+  # set -x
+  if [[ "${build}" != "no" ]]
   then
-    config=( --config "${launchdir}" )
-  fi
-  src=$(pwd)
-  if pushd $dir
-  then
-    cmd=( cmake "${src}" )
-    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
-    "${cmd[@]}" |& tee -a "${logfile}" || exit 1
-    popd
-  fi
-  if [[ ${build} != 0 ]]
-  then
-    # Determine if parallel unit tests are enabled.
-    parallel_test=''
+    # Parallel unit tests have been enabled since 2017
 
-    cmd=( cmake --build $dir "${config[@]}" -- ${buildopt} )
-    echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
-    "${cmd[@]}" |& tee -a "${logfile}" || exit 1
-    parallel_test=$( $dir/${launchdir}/rippled --help |& \
-      grep -q unittest-jobs && \
-      echo "--testjobs=${nproc}" )
-    set +x
-
-    echo Parallel: ${parallel_test} |& tee -a "${logfile}"
-
-    # CMake
-    if [[ ${fast} != 0 ]]
+    if type -t SimpleTestLoop >& /dev/null
     then
+      for target in ${cmake_targets}
+      do
+        cmd=( SimpleTestLoop "${target}" ${cmake_dirs} )
+        if [[ -n "${configs[@]}" ]]
+        then
+          cmd+=( "${configs[@]}" )
+        fi
+        if [[ ${fast} != 0 ]]
+        then
+          cmd+=( "--version" )
+        else
+          cmd+=( "--unittest --unittest-jobs=$( nproc )" )
+        fi
+        echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+        "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+        cmd=( echo "No failures found in SimpleTestLoop output" )
+        echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+        "${cmd[@]}"
+      done || exit 1
+    else
       for dir in ${cmake_dirs}
       do
         dir=${cmake_prefix}${dir}
@@ -177,7 +178,7 @@ time (
         if pushd $dir
         then
           cmd=( cmake "${src}" )
-          echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+          echo "Run: (from $(basename $(pwd))) ${cmd[@]}" |& tee -a "${logfile}"
           "${cmd[@]}" |& tee -a "${logfile}" || exit 1
           popd
         fi
@@ -194,21 +195,21 @@ time (
             cmd=( cmake --build $dir --target $target $config -- ${buildopt} )
             echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
             "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+            if [[ ${fast} == 0 ]]
+            then
+              if [[ -n "$config" ]]
+              then
+                rd="${dir}/${config}/rippled"
+              else
+                rd="${dir}/rippled"
+              fi
+              cmd=( "${rd}" "--unittest" "--unittest-jobs=$( nproc )" )
+              echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+              "${cmd[@]}" |& tee -a "${logfile}" || exit 1
+            fi
           done
         done
       done || exit 1
-    else
-      set -x
-      unset config
-      if [[ -n "${configs[@]}" ]]
-      then
-        config=( --config "${configs[@]}" )
-      fi
-      cmd=( ./Builds/Test.py -v --dir ${cmake_dirs} --target ${cmake_targets}
-        "${config[@]}" ${parallel_test} -- ${buildopt} )
-      echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
-      "${cmd[@]}" |& tee -a "${logfile}" || exit 1
-      set +x
     fi
   fi
 
@@ -219,7 +220,7 @@ then
   exit 0
 fi
 
-set -x
+# set -x
 
 ulimit -c unlimited
 if type -t tmux >& /dev/null
@@ -307,7 +308,9 @@ do
   fi
 done
 
-grep failures "${logfile}"
+cmd=( grep failures "${logfile}" )
+echo "Run: ${cmd[@]}" |& tee -a "${logfile}"
+"${cmd[@]}"
 
 if [[ -v wait ]]
 then
