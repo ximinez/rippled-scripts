@@ -190,6 +190,7 @@ time (
             if [[ -n "$config" ]]
             then
               echo "With configuration $config" |& tee -a "${logfile}"
+              testdir="$config"
               config="--config $config"
             fi
             cmd=( cmake --build $dir --target $target $config -- ${buildopt} )
@@ -197,9 +198,9 @@ time (
             "${cmd[@]}" |& tee -a "${logfile}" || exit 1
             if [[ ${fast} == 0 ]]
             then
-              if [[ -n "$config" ]]
+              if [[ -n "$testdir" ]]
               then
-                rd="${dir}/${config}/rippled"
+                rd="${dir}/${testdir}/rippled"
               else
                 rd="${dir}/rippled"
               fi
