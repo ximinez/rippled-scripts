@@ -5,14 +5,53 @@ They are not guaranteed to be thorough or complete, or have relevant
 error checking. They may not even necessarily be correct. Feel free to
 submit a PR with improvements, but there is no promise of support.
 
+## Simpler steps as of 2.3.0-b1
+
+(Courtesy of @Bronek.)
+
+1. Get the hash of the transaction you care about.
+2. Get the `ledger_index` of the ledger with that transaction hash.
+3. Fetch the ledger preceding that `ledger_index`
+   ```
+   $ build/rippled ledger_request <ledger_index - 1>
+   ```
+   * If you have trouble fetching the ledger, add full history with:
+     ```
+     $ build/rippled connect s2.ripple.com
+     ```
+4. Fetch the ledger with the ledger index
+   ```
+   $ build/rippled ledger_request <ledger_index>
+   ```
+   * Alternately, use the [`rr_setup_gdb_txn.py`](rr_setup_gdb_txn.py)
+     script to automate grabbing both ledgers.
+5. Get the `ledger_hash` of the ledger you want to replay
+6. Stop rippled
+7. Run
+    ```
+    $ gdb --args build/rippled --replay --ledger "<ledger_hash>" --trap_tx_hash "<transaction_hash>"
+    ```
+8. Find "Transaction trapped: " in Transactor.cpp and set a breakpoint
+   ```
+   # Example. Line number may change
+   break Transactor.cpp:860
+   ```
+   * TODO: Extract this into a function, and set the breakpoint on the
+     function name.
+     ```
+     # Example. Function name hasn't been determined yet
+     break ripple::Transactor::trapTransaction
+9. gdb) run
+
 ## Steps
 
-1. Determine the specific transaction ID that you want to replay. 
+1. Determine the specific transaction ID that you want to replay.
    This example, will use
    `5216B93EE88325FEC97DF3FCC36EA12C0078D0C85D437D9E52B4D9667FFE46FF`
 2. The (local) `rippled` which will be replaying the transaction will
    need to have that ledger, as well as the previous ledger.
-3. Use the [rr_setup_gdb_txn.py] script to automate determining and
+3. Use the [`rr_setup_gdb_txn.py`](rr_setup_gdb_txn.py) script to
+   automate determining and
    downloading grabbing those ledgers. `rr_setup_gdb_txn.py -g
    gdb_startup.txt -t
    5216B93EE88325FEC97DF3FCC36EA12C0078D0C85D437D9E52B4D9667FFE46FF -e
@@ -47,7 +86,8 @@ submit a PR with improvements, but there is no promise of support.
      $ rippled stop
      ```
 6. Now run rippled in gdb. `gdb -x gdb_startup.txt <path_to_rippled>`
-7. Optional: Import the [tx_hex.py] or [tx_breakpoint.py] script, and
+7. Optional: Import the [`tx_hex.py`](tx_hex.py) or
+   [`tx_breakpoint.py`](tx_breakpoint.py) script, and
    set a conditional breakpoint at `Transactor.cpp:834` where the
    condition is the transaction hash we're interested in.
     ```
