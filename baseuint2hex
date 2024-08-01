@@ -1,0 +1,26 @@
+#/bin/bash
+
+if [[ "$#" -eq 0 ]]
+then
+  name=$( basename $0 )
+  echo "Usage: ${name} number [...]"
+  echo
+  echo "Converts one or more numbers to a big-endian ordered hex"
+  echo "representation as if the memory was being read one byte at"
+  echo "a time. Numbers can use C representation for hex, octal, etc."
+  echo
+  echo "Intended to be useful for grabbing the array of values in"
+  echo "a base_uint from a debugged rippled and converting them to"
+  echo "hex as if run through the strHex() function"
+  echo
+  echo "Example:"
+  echo "$ ${name} 0x12345678 123456789"
+  echo "7856341215CD5B07"
+fi
+
+for x in "${@}"
+do
+  printf "%08x" $x | \
+  awk '{x=""; n = split(toupper($0), a, /../, seps); for (i=1; i<=n; i++) { x = seps[i] x; }; printf "%s", x}'
+done
+echo
