@@ -240,14 +240,25 @@ then
 fi
 for network in rippled # rippled-altnet
 do
-  for file in debug.log logs/debug.log log/debug.log \
-      perf.log logs/perf.log log/perf.log
-  do
-    if [ -e "${HOME}/${network}/${file}" ]
-    then
-      mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
-    fi
-  done
+  if [[ -f $HOME/.logrotate.conf ]] && \
+    grep -q rippled $HOME/.logrotate.conf && \
+    crontab -l | grep -q logrotate
+  then
+    cmd=( $( crontab -l | grep logrotate | \
+      awk '(index($6, "logrotate") != 0) \
+        {l=$6; $1=$2=$3=$4=$5=$6=""; print l " --force " $0 }' ) )
+    echo "Run: ${cmd[@]}" 1>&2 | tee -a "${logfile}"
+    "${cmd[@]}" || true
+  else
+    for file in debug.log logs/debug.log log/debug.log \
+        perf.log logs/perf.log log/perf.log
+    do
+      if [ -e "${HOME}/${network}/${file}" ]
+      then
+        mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
+      fi
+    done
+  fi
   cfgfile="${HOME}/.config/ripple/${network}.cfg"
   if [ -e "${cfgfile}" ]
   then
