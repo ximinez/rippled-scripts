@@ -254,14 +254,6 @@ then
 fi
 for network in rippled # rippled-altnet
 do
-  for file in debug.log logs/debug.log log/debug.log \
-      perf.log logs/perf.log log/perf.log
-  do
-    if [ -e "${HOME}/${network}/${file}" ]
-    then
-      mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
-    fi
-  done
   cfgfile="${HOME}/.config/ripple/${network}.cfg"
   if [ -e "${cfgfile}" ]
   then
@@ -325,7 +317,7 @@ do
         gdbcommands+=( -ex "${c}" )
       done
       gdbcommands+=( "--args" )
-    if [[ ${#gdb[@]} > 0 ]] && type -t lldb >& /dev/null
+    elif [[ ${#gdb[@]} > 0 ]] && type -t lldb >& /dev/null
     then
       : "TODO: Figure out how to do fancy startup stuff in lldb"
     fi
@@ -345,6 +337,31 @@ do
     "${cmd[@]}"
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
       : 'C-x a'
+
+    # Rotate the logfile(s)
+    if [[ -f $HOME/.logrotate.conf ]] && \
+      grep -q rippled $HOME/.logrotate.conf && \
+      crontab -l | grep -q logrotate
+    then
+      cmd=(
+        eval "$(
+          crontab -l | grep logrotate | \
+          awk '(index($6, "logrotate") != 0) \
+            {l=$6; $1=$2=$3=$4=$5=$6=""; print l " --force --verbose " $0 }'
+        )"
+      )
+      echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
+      "${cmd[@]}" 2>&1 | tee -a "${logfile}" || true
+    else
+      for file in debug.log logs/debug.log log/debug.log \
+          perf.log logs/perf.log log/perf.log
+      do
+        if [ -e "${HOME}/${network}/${file}" ]
+        then
+          mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
+        fi
+      done
+    fi
   else
     echo "Error: config file not found: ${cfgfile}"
   fi
