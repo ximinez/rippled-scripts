@@ -52,6 +52,8 @@ do
             case "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" :
             case "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP"  :
               return "Gatehub Fifth";
+            case "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" :
+              return "Ripple Stablecoin";
             default: return c;
           }
         }
@@ -87,6 +89,8 @@ do
               # return "rchGBxcD1A1C2tdxF6papQYZ8kjRKMYcL"  ;
               # return "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" ;
               # return "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP"  ;
+            case "Ripple Stablecoin":
+              return "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" ;
             default: return c;
           }
         }
