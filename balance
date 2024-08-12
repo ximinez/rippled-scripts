@@ -44,6 +44,8 @@ do
               return "SOLO";
             case "0158415500000000C1F76FF6ECB0BAC600000000":
               return "XAU";
+            case "524C555344000000000000000000000000000000":
+              return "RLUSD";
             default: return c;
           }
         }
@@ -76,6 +78,8 @@ do
               return "Gatehub Fifth";
             case "rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz" :
               return "Sologenic  ";
+            case "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" :
+              return "Ripple Stable";
             default: return c;
           }
         }

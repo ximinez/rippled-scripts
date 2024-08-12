@@ -20,6 +20,8 @@ def currencyname:
       "SOLO"
     elif . == "0158415500000000C1F76FF6ECB0BAC600000000" then
       "XAU"
+    elif . == "524C555344000000000000000000000000000000" then
+      "RLUSD"
     else
       empty
     end
@@ -53,6 +55,8 @@ def exchangename:
       "Gatehub Fifth"
     elif . == "rsoLo2S1kiGeCcn6hCUXVrCpGMWLrRrLZz" then
       "Sologenic"
+    elif . == "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" then
+      "Ripple Stablecoin"
     else
       empty
     end
