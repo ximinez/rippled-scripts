@@ -320,6 +320,23 @@ do
     elif [[ ${#gdb[@]} > 0 ]] && type -t lldb >& /dev/null
     then
       : "TODO: Figure out how to do fancy startup stuff in lldb"
+      temp=(
+        # 'set pagination off'
+        # "set logging file build/gdb.${datestamp}.txt"
+        "run"
+        # 'tui enable'
+        # 'winheight src -8'
+        # "generate-core-file build/core.${datestamp}"
+        # "set logging enabled on"
+        # "thread apply all bt full"
+        "quit"
+      )
+      gdbcommands=()
+      for c in "${temp[@]}"
+      do
+        gdbcommands+=( -o "${c}" )
+      done
+      gdbcommands=( "--" )
     fi
 
     # Stop the currently running rippled, if any
