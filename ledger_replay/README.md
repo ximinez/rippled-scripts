@@ -31,17 +31,14 @@ submit a PR with improvements, but there is no promise of support.
     ```
     $ gdb --args build/rippled --replay --ledger "<ledger_hash>" --trap_tx_hash "<transaction_hash>"
     ```
-8. Find "Transaction trapped: " in Transactor.cpp and set a breakpoint
-   ```
-   # Example. Line number may change
-   break Transactor.cpp:860
-   ```
-   * TODO: Extract this into a function, and set the breakpoint on the
-     function name.
+8. Set a breakpoint on `trapTransaction`
      ```
-     # Example. Function name hasn't been determined yet
-     break ripple::Transactor::trapTransaction
-9. gdb) run
+     gdb) break ripple::transactor::traptransaction
+     ```
+9. Start rippled
+   ```
+   gdb) run
+   ```
 
 ## Steps
 
