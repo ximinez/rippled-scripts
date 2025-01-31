@@ -12,15 +12,41 @@ then
   buildopt="-m"
   launch=( start )
   launchdir="Release"
+  if [[ -x $( type -p dos2unix ) ]]
+  then
+    dos2unix="dos2unix -O"
+  else
+    dos2unix="cat -v"
+  fi
 else
   configs=( "" )
   buildopt="-j${nproc}"
   launch=( tmux new-window -a -t rippled:$ -n rippled )
   launchdir=""
+  dos2unix="cat -v"
 fi
 
 logfile="$(pwd)/build/dogfood.out"
+tmpfile="$(pwd)/build/dogfood.tmp"
 rm -fv "${logfile}"
+
+_run()
+{
+  # Usage: _run: command
+  echo -en "\nRun: ${@} " 2>&1 | tee -a "${logfile}"
+  date 2>&1 | tee -a "${logfile}"
+  if [[ "$1" == "--direct" ]]
+  then
+    shift
+    "${@}"
+  else
+    ( time ${@} )  2>&1 | tee "${tmpfile}"
+    set -x
+    ${dos2unix} "${tmpfile}" >> "${logfile}"
+    set +x
+    rm "${tmpfile}"
+  fi
+}
 
 tmuxopts="-d"
 if [[ -n "${DISPLAY}" ]] && type -t gnome-terminal >& /dev/null
@@ -33,18 +59,14 @@ then
   # set -x
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
     sleep 600 )
-  echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}" || true
   cmd=( tmux new-window -d -a -t rippled:$ -n dogfood \
     "${0}" "${@}" wait )
-  echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}" || true
   cmd=( tmux select-window -t rippled:dogfood )
-  echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}" || true
   cmd=( tmux kill-window -t rippled:sleep )
-  echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}" || true
   # tmux set-option -w -t rippled:dogfood remain-on-exit on
   echo 'Running in tmux session. Use "tmux attach -t rippled" to join it'
   exit
@@ -144,8 +166,7 @@ time (
     do
       dir=${cmake_prefix}${dir}
       cmd=( cmake --build $dir --target clean )
-      echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-      "${cmd[@]}" 2>&1 | tee -a "${logfile}" || exit 1
+      _run "${cmd[@]}" || exit 1
     done
   fi
 
@@ -183,11 +204,9 @@ time (
             cmd+=( "--unittest --unittest-jobs=$( nproc )" )
           fi
         fi
-        echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-        "${cmd[@]}" 2>&1 | tee -a "${logfile}" || exit 1
+        _run "${cmd[@]}" || exit 1
         cmd=( echo "No failures found in SimpleTestLoop output" )
-        echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-        "${cmd[@]}"
+        _run "${cmd[@]}"
       done || exit 1
     else
       for dir in ${cmake_dirs}
@@ -197,8 +216,8 @@ time (
         if pushd $dir
         then
           cmd=( cmake "${src}" )
-          echo "Run: (from $(basename $(pwd))) ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-          "${cmd[@]}" 2>&1 | tee -a "${logfile}" || exit 1
+          echo "Run: (from $(basename $(pwd)))" 2>&1 | tee -a "${logfile}"
+          _run "${cmd[@]}" || exit 1
           popd
         fi
         for target in ${cmake_targets}
@@ -213,8 +232,7 @@ time (
               config="--config $config"
             fi
             cmd=( cmake --build $dir --target $target $config -- ${buildopt} )
-            echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-            "${cmd[@]}" 2>&1 | tee -a "${logfile}" || exit 1
+            _run "${cmd[@]}" || exit 1
             if [[ ${fast} == 0 ]]
             then
               if [[ -n "$testdir" ]]
@@ -224,8 +242,7 @@ time (
                 rd="${dir}/rippled"
               fi
               cmd=( "${rd}" "--unittest" "--unittest-jobs=$( nproc )" )
-              echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-              "${cmd[@]}" 2>&1 | tee -a "${logfile}" || exit 1
+              _run "${cmd[@]}" || exit 1
             fi
           done
         done
@@ -247,8 +264,7 @@ if type -t tmux >& /dev/null
 then
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30
     sleep 600 )
-  echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}" || true
   # Give the terminal a few seconds to create
   sleep 2
 fi
@@ -341,17 +357,14 @@ do
 
     # Stop the currently running rippled, if any
     cmd=( "${exe}" --conf "${cfgfile}" stop )
-    echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-    "${cmd[@]}" || true
+    _run "${cmd[@]}" || true
     # Save the executable
-    cmd=( cp "${exe}" "build/${runfile}.${datestamp}" )
-    echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-    "${cmd[@]}" || true
+    cmd=( cp -v "${exe}" "build/${runfile}.${datestamp}" )
+    _run "${cmd[@]}" || true
     # Start the new rippled
     cmd=( "${launch[@]}" "${gdb[@]}" "${gdbcommands[@]}"
       "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}" )
-    echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-    "${cmd[@]}"
+    _run --direct "${cmd[@]}" || true
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
       : 'C-x a'
 
@@ -367,8 +380,7 @@ do
             {l=$6; $1=$2=$3=$4=$5=$6=""; print l " --force --verbose " $0 }'
         )"
       )
-      echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-      "${cmd[@]}" 2>&1 | tee -a "${logfile}" || true
+      _run "${cmd[@]}" || true
     else
       for file in debug.log logs/debug.log log/debug.log \
           perf.log logs/perf.log log/perf.log
@@ -385,8 +397,7 @@ do
 done
 
 cmd=( grep failures "${logfile}" )
-echo "Run: ${cmd[@]}" 2>&1 | tee -a "${logfile}"
-"${cmd[@]}"
+_run "${cmd[@]}"
 
 if [[ -n "${wait}" ]]
 then
