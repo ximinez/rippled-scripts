@@ -204,7 +204,7 @@ time (
             cmd+=( "--unittest --unittest-jobs=$( nproc )" )
           fi
         fi
-        _run "${cmd[@]}" || exit 1
+        _run --direct "${cmd[@]}" || exit 1
         cmd=( echo "No failures found in SimpleTestLoop output" )
         _run "${cmd[@]}"
       done || exit 1
