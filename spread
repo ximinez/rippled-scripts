@@ -19,7 +19,6 @@ name()
 # Build the pair for rippled
 humanpair=()
 machinepair=()
-reversepair=()
 for currency in ${pair[@]}
 do
   # Parse each currency into human and machine readable text, regardless
@@ -53,14 +52,24 @@ do
             case "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP"  :
               return "Gatehub Fifth";
             case "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" :
-              return "Ripple Stablecoin";
+              return "Ripple";
             default: return c;
           }
         }
         { OFS=FS; if (NF >= 2) $2=gatewayname($2); print $0; }
         ' )
-  humanpair=( ${humanpair[@]} $human )
-  machine=$( echo $currency | gawk -F/ ' \
+  humanpair=( "${humanpair[@]}" "$human" )
+  machine=(
+    $( echo $currency | gawk -F/ ' \
+        function currencyname(c)
+        {
+          switch(c)
+          {
+            case "RLUSD":
+              return "524C555344000000000000000000000000000000";
+            default: return c;
+          }
+        }
         function gatewayname(c)
         {
           switch(c)
@@ -89,29 +98,72 @@ do
               # return "rchGBxcD1A1C2tdxF6papQYZ8kjRKMYcL"  ;
               # return "rDAN8tzydyNfnNf2bfUQY6iR96UbpvNsze" ;
               # return "rckzVpTnKpP4TJ1puQe827bV3X4oYtdTP"  ;
-            case "Ripple Stablecoin":
+            case "Ripple":
               return "rMxCKbEDwqr76QuheSUMdEGf4B9xJ8m5De" ;
             default: return c;
           }
         }
-        { OFS=FS; if (NF >= 2) $2=gatewayname($2); print $0; }
-        ' )
-  machinepair=( ${machinepair[@]} $machine )
-  reversepair=( $machine ${reversepair[@]} )
+        {
+          if (NF >= 2) {
+            $1=currencyname($1);
+            $2=gatewayname($2);
+            print $1 OFS $2
+          }
+          else
+          {
+            # Should be XRP
+            print $1
+          }
+        }
+        '
+    )
+  )
+  # echo "Machine: ${machine[@]}"
+  machine=$( echo $(
+    cat <<-MACHINE
+    {
+      "currency" : "${machine[0]}",
+      "issuer" : "${machine[1]}"
+    }
+MACHINE
+  ) | jq 'map_values(select(. != ""))' )
+  machinepair=( "${machinepair[@]}" "$machine" )
 done
+# echo "Machine pair: ${machinepair[@]}"
 
 XRP=1
-if [ "${machinepair[0]}" == "XRP" ]
+if [ "${humanpair[0]}" == "XRP" ]
 then
   XRP=1000000
-elif [ "${machinepair[1]}" == "XRP" ]
+elif [ "${humanpair[1]}" == "XRP" ]
 then
   XRP=0.000001
 fi
-# echo "${machinepair[@]}"
+json=$( echo $(
+  cat <<-JSON
+    {
+      "taker_pays" : ${machinepair[0]},
+      "taker_gets" : ${machinepair[1]},
+      "ledger_index" : "validated"
+    }
+JSON
+  ) | jq -c '.'
+)
+reversejson=$( echo $(
+  cat <<-REVERSEJSON
+    {
+      "taker_gets" : ${machinepair[0]},
+      "taker_pays" : ${machinepair[1]},
+      "ledger_index" : "validated"
+    }
+REVERSEJSON
+  ) | jq -c '.'
+)
+# echo "JSON: $json"
+# echo "REVERSEJSON: $reversejson"
 echo "${humanpair[@]} spread: " \
   $( ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} \
-    book_offers ${machinepair[@]} "" validated \
+    json book_offers "${json}" \
     | jq "if .error != null then .error_message
       elif .result.error != null then .result.error_message
       else .result.offers[0].quality | tonumber | 1 / . * ${XRP} * 100000
@@ -119,7 +171,7 @@ echo "${humanpair[@]} spread: " \
   ) \
   $( ${RIPPLED} -q \
     --rpc_ip=${RPC_IP}:${RPC_PORT} \
-    book_offers ${reversepair[@]} "" validated \
+    json book_offers "${reversejson}" \
     | jq "if .error != null then .error_message
       elif .result.error != null then .result.error_message
       else .result.offers[0].quality | tonumber * ${XRP} * 100000
