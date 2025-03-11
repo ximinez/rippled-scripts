@@ -12,7 +12,17 @@ fi
 
 jq '
 def tolocaltime: strflocaltime("%Y-%m-%d, %I:%M:%S %p (%Z)") ;
-def dropstoxrp: tonumber / 1000000 | tostring + " XRP" ;
+def dropstoxrp:
+(
+  tonumber |
+  if . | length == 1 then
+    . | tostring + " drop"
+  elif (. != 0) and (. | length < 1000000) then
+    . | tostring + " drops"
+  else
+    . / 1000000 | tostring + " XRP"
+  end
+);
 def currencyname:
 (
   (
