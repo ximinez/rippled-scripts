@@ -352,7 +352,7 @@ do
       do
         gdbcommands+=( -o "${c}" )
       done
-      gdbcommands=( "--" )
+      gdbcommands+=( "--" )
     fi
 
     # Stop the currently running rippled, if any
