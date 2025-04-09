@@ -26,8 +26,9 @@ else
   dos2unix="cat -v"
 fi
 
-logfile="$(pwd)/build/dogfood.out"
-tmpfile="$(pwd)/build/dogfood.tmp"
+builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
+logfile="${builddir}/dogfood.out"
+tmpfile="${builddir}/dogfood.tmp"
 rm -fv "${logfile}"
 
 _run()
@@ -77,7 +78,7 @@ set -e
 # Output commands before executing them
 # set -x
 
-cmake_prefix=./build/cmake/
+cmake_prefix="${builddir}/cmake/"
 cmake_dirs=$(\ls -r ${cmake_prefix})
 echo Dirs: ${cmake_dirs}
 cmake_targets="rippled"
@@ -289,7 +290,7 @@ do
     fi
 
     # Clean up old files
-    for file in build/rippled.* build/gdb.*
+    for file in "${builddir}/rippled".* "${builddir}/gdb".*
     do
       if [[ ! -e "${file}" ]]
       then
@@ -299,23 +300,23 @@ do
       echo $file
       parts=( $( echo "${file}" | sed 's/\./ /g' ) )
       echo "${parts[@]}"
-      ls -ltr build/*.${parts[1]}*
-      if [[ -e "build/core.${parts[1]}" ]]
+      ls -ltr "${builddir}"/*.${parts[1]}*
+      if [[ -e "${builddir}/core.${parts[1]}" ]]
       then
         continue
       fi
-      rm -fv build/*.${parts[1]}*
+      rm -fv "${builddir}"/*.${parts[1]}*
     done
 
     if [[ ${#gdb[@]} > 0 ]] && type -t gdb >& /dev/null
     then
       temp=(
         'set pagination off'
-        "set logging file build/gdb.${datestamp}.txt"
+        "set logging file ${builddir}/gdb.${datestamp}.txt"
         "run"
         'tui enable'
         'winheight src -8'
-        "generate-core-file build/core.${datestamp}"
+        "generate-core-file ${builddir}/core.${datestamp}"
         # "set logging overwrite on"
         "set logging enabled on"
         "thread apply all bt full"
@@ -338,11 +339,11 @@ do
       : "TODO: Figure out how to do fancy startup stuff in lldb"
       temp=(
         # 'set pagination off'
-        # "set logging file build/gdb.${datestamp}.txt"
+        # "set logging file ${builddir}/gdb.${datestamp}.txt"
         "run"
         # 'tui enable'
         # 'winheight src -8'
-        # "generate-core-file build/core.${datestamp}"
+        # "generate-core-file ${builddir}/core.${datestamp}"
         # "set logging enabled on"
         # "thread apply all bt full"
         "quit"
@@ -359,7 +360,7 @@ do
     cmd=( "${exe}" --conf "${cfgfile}" stop )
     _run "${cmd[@]}" || true
     # Save the executable
-    cmd=( cp -v "${exe}" "build/${runfile}.${datestamp}" )
+    cmd=( cp -v "${exe}" "${builddir}/${runfile}.${datestamp}" )
     _run "${cmd[@]}" || true
     # Start the new rippled
     cmd=( "${launch[@]}" "${gdb[@]}" "${gdbcommands[@]}"
