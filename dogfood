@@ -21,7 +21,7 @@ then
 else
   configs=( "" )
   buildopt="-j${nproc}"
-  launch=( tmux new-window -a -t rippled:$ -n rippled )
+  launch=()
   launchdir=""
   dos2unix="cat -v"
 fi
@@ -263,6 +263,8 @@ fi
 ulimit -c unlimited
 if type -t tmux >& /dev/null
 then
+  launch=( tmux new-window -a -t rippled:$ -n rippled )
+  switch=( tmux last-window )
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30
     sleep 600 )
   _run "${cmd[@]}" || true
@@ -368,6 +370,10 @@ do
     _run --direct "${cmd[@]}" || true
       : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
       : 'C-x a'
+    if [[ "${#switch}" -gt 0 ]]
+    then
+      _run --direct "${switch[@]}"
+    fi
 
     # Rotate the logfile(s)
     if [[ -f $HOME/.logrotate.conf ]] && \
