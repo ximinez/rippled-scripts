@@ -30,7 +30,7 @@ then
 
   tmuxcommand=( tmux new-window -d -a -t monitor:$ )
 
-  if [[ ! -v TMUX ]]
+  if [[ -z "${TMUX}" ]]
   then
     cmd=( tmux new-session -d -s monitor sleep 600 )
     echo "Run: ${cmd[@]}"
@@ -114,7 +114,7 @@ then
   echo "Run: ${cmd[@]}"
   "${cmd[@]}"
 
-  if [[ ! -v TMUX ]]
+  if [[ -z "${TMUX}" ]]
   then
     cmd=( tmux attach -t monitor )
     echo "Run: ${cmd[@]}"
