@@ -35,7 +35,7 @@ done
 can_delete()
 {
   set -o pipefail
-  if [[ -v file ]]
+  if [[ -n "${file}" ]]
   then
     if [[ $# -eq 0 ]]
     then
@@ -102,7 +102,7 @@ do
       unset nextdelete
       break
     fi
-    if [[ ! -v nextdelete ]]
+    if [[ -z "${nextdelete}" ]]
     then
       nextdelete=${max}
       echo Pending can_delete to ${nextdelete}
@@ -115,7 +115,7 @@ do
       echo "${txs}" >> transactions.${min}-${max}.txt
     fi
   done
-  if [[ -v nextdelete ]]
+  if [[ -n "${nextdelete}" ]]
   then
     can_delete ${nextdelete}
     next=$(( ${nextdelete} + 1 ))

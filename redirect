@@ -5,5 +5,5 @@ then
   echo Usage: $( basename $0 ) "command" output-file >&2
   exit 1
 fi
-echo "${1} |& tee ${2}" |& tee "${2}"
-${1} |& tee -a "${2}"
+echo "${1} 2>&1 | tee ${2}" 2>&1 | tee "${2}"
+${1} 2>&1 | tee -a "${2}"
