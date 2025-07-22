@@ -117,12 +117,21 @@ do
   done
   if [[ -n "${nextdelete}" ]]
   then
-    can_delete ${nextdelete}
-    next=$(( ${nextdelete} + 1 ))
-    echo Updated can_delete to $( can_delete ). Wait 30 seconds.
+    if last=$( can_delete ) && [[ ${last} != "null" && \
+      "${last}" != "$[ ${next} - 1 ]" ]]
+    then
+      next="${last}"
 
-    # Delay enough time for a new ledger to close.
-    sleep 30
+      echo can_delete was updated externally to ${last}. Check now.
+    else
+      can_delete ${nextdelete}
+      next=$(( ${nextdelete} + 1 ))
+
+      echo Updated can_delete to $( can_delete ). Wait 30 seconds.
+
+      # Delay enough time for a new ledger to close.
+      sleep 30
+    fi
   fi
 done
 
