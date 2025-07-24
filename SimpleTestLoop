@@ -1,0 +1,406 @@
+#!/bin/bash
+
+# Intended to be run from a cmake project working directory.
+#
+# Expected parameters:
+# First: The binary that is built in the cmake target folder
+# Second: Optional list of directories of cmake folders to build. If
+# none provided, uses all under `../build/$(basename)/cmake`.
+# Can be specified as absolute, relative, or relative to
+# `../build/$(basename)/cmake`.
+# Remaining: Individual parameters to run from the binary. The binary
+# will be run once for each parameter. To have multiple parameters on
+# a single run, use ""s.
+# If no "Remaining" are provided, the binary will be built, but not run.
+#
+# Example:
+# . SimpleTestLoop.sh foo --bar --baz "--wap --wut"
+#
+# Will build using cmake, then run
+# * foo --bar
+# * foo --baz
+# * foo --wap --wut
+#
+# There is some weirdness with the bash shell (or maybe my individual
+# setup) where this won't always work if run as a script, so copy/paste
+# or run using `source SimpleTestLoop`.
+#
+# This script assumes you have hooks set up from
+# https://github.com/ximinez/git-scripts,
+# particularly post-checkout
+
+if [ $# -eq 0 ]
+then
+  echo Usage: $BASH_SOURCE [--clean] {binary_name} [ {cmake dir name} [...] ] \
+    [ {executable params} [...] ]
+  exit 1
+fi
+
+maindir="$(pwd)"
+builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
+
+if [[ "$1" == "--clean" ]]
+then
+  rm -rf "${builddir}/cmake" "${builddir}/conan"*
+  shift
+fi
+
+binary=$1
+shift
+
+if [ ! -e "${builddir}/cmake" ]
+then
+  echo -n "Run: git checkout "
+  date
+  ( time git checkout )
+fi
+
+dirs=()
+while [[ $# -gt 1 ]]
+do
+  if [[ -d "${builddir}/cmake/$1" ]]
+  then
+    dirs+=( "${builddir}/cmake/$1" )
+    shift
+  elif [[ -d $1 ]]
+  then
+    dirs+=( "$1" )
+    shift
+  else
+    break
+  fi
+done
+if [[ ${#dirs[@]} -eq 0 ]]
+then
+  dirs=( "${builddir}/cmake/"* )
+fi
+configs=()
+if [[ "${OS}" =~ "Windows" ]]
+then
+  while [[ $# -gt 1 ]]
+  do
+    if [[ "$1" == "Debug" || "$1" == "Release" ]]
+    then
+      configs+=( "$1" )
+      shift
+    else
+      break
+    fi
+  done
+  if [[ ${#configs[@]} -eq 0 ]]
+  then
+    configs=( "Release" "Debug" )
+  fi
+else
+  configs+=( "" )
+fi
+
+outputfile="${builddir}/testrun.out"
+tmpfile="${builddir}/testrun.tmp"
+outputdir="${builddir}"
+if [ -f "${outputfile}" ]
+then
+  rm -fv "${outputfile}"
+fi
+if [ ! -d "${outputdir}" ]
+then
+  mkdir -pv "${outputdir}"
+fi
+set -o pipefail
+
+# echo "binary: ${binary}" 2>&1 | tee -a "${outputfile}"
+# echo "Dirs: ${dirs[@]}" 2>&1 | tee -a "${outputfile}"
+# echo "Configs: ${configs[@]}" 2>&1 | tee -a "${outputfile}"
+# echo "Command line: ${@}" 2>&1 | tee -a "${outputfile}"
+
+if [[ "${OS}" =~ "Windows" ]]
+then
+  if [[ -x $( type -p dos2unix ) ]]
+  then
+    dos2unix="dos2unix -O"
+  else
+    dos2unix="cat -v"
+  fi
+else
+  dos2unix="cat -v"
+fi
+
+_run()
+{
+  # Usage: _run: command
+  echo -e "\nRun: ${@} " 2>&1 | tee -a "${outputfile}"
+  date 2>&1 | tee -a "${outputfile}"
+  echo | tee -a "${outputfile}"
+  "${@}" 2>&1 | tee "${tmpfile}"
+  result=$?
+  ${dos2unix} "${tmpfile}" >> "${outputfile}"
+  echo | tee -a "${outputfile}"
+  echo "RESULT: $result" | tee -a "${outputfile}"
+  rm "${tmpfile}"
+  return ${result}
+}
+
+conan=0
+if [ ! -d "${builddir}/cmake" ]
+then
+  _run git checkout
+fi
+for conanfile in conanfile.*
+do
+  if [[ -e "${conanfile}" ]]
+  then
+    conan=1
+    for exp in external/*/conanfile.*
+    do
+      if [[ -f "${exp}" ]]
+      then
+        exp=$( dirname "${exp}" )
+        name=$( basename "${exp}" )
+        extra=$( grep "${name}/[0-9.]" "${conanfile}" | \
+          sed "s/.*'${name}\/\([0-9.]*\)'.*/\1/" | head -1 )
+
+        _run conan export --version "${extra}" "${exp}"
+      fi
+    done
+  fi
+done
+
+for vscmake in /c/Program\ Files/Microsoft\ Visual\ Studio/*/*/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin
+do
+  if [[ -e "${vscmake}/cmake.exe" ]]
+  then
+    export PATH="${vscmake}:${PATH}"
+  fi
+done
+
+__simple_conan_pre()
+{
+  if [[ "${conan}" -ne 1 ]]
+  then
+    echo Conan not used in this project
+    return 0
+  fi
+  _run rm -rfv "${builddir}/save.conan"*
+  for dir in "${builddir}/conan"*
+  do
+    if [[ ! -d "${dir}" ]]
+    then
+      continue
+    fi
+    dest="${builddir}/save.$(basename "${dir}")"
+    _run cp -av "${dir}" "${dest}"
+  done
+}
+
+__simple_conan_post()
+{
+  if [[ "${conan}" -ne 1 ]]
+  then
+    echo Conan not used in this project
+    return 0
+  fi
+  for dir in "${builddir}/conan"*
+  do
+    if [[ ! -d "${dir}" ]]
+    then
+      continue
+    fi
+    dest="${builddir}/save.$(basename "${dir}")"
+    _run diff -r "${dir}" "${dest}"
+    if diff -qr "${dir}" "${dest}" | tee -a "${outputfile}"
+    then
+      _run : $? Conan made no changes. Replace the original with the backup.
+      _run rm -rfv "${dir}"
+      _run mv -v "${dest}" "${dir}"
+    else
+      _run : $? Conan made changes. Delete the backup.
+      _run rm -rfv "${dest}"
+    fi
+  done
+
+  for dir in "${builddir}/conan"*
+  do
+    if [[ -f "${dir}" ]]
+    then
+      echo "Skipping file ${dir}" 2>&1 | tee -a "${outputfile}"
+      continue
+    fi
+    if [[ ! -d "${dir}" ]]
+    then
+      echo "No conan folder created" 2>&1 | tee -a "${outputfile}"
+      return 1
+    fi
+
+    preset="CMakeUserPresets.json"
+    subdir=$( basename ${dir})
+    if [[ -f "${preset}" ]] &&
+      grep -q "${subdir}..\?build/generators..\?CMakePresets.json" "${preset}" &&
+      [[ $( wc -l "${preset}" | cut -d\  -f1 ) -eq 8 ]]
+    then
+      _run mv -vf "${preset}" "${preset}.bad"
+    fi
+  done
+}
+
+__simple_conan()
+{
+  # Usage: __simple_conan: ver config
+  if [[ "${conan}" -ne 1 ]]
+  then
+    echo Conan not used in this project
+    return 0
+  fi
+  local ver="$1"
+  shift
+  local config="$1"
+  shift
+
+  conan_profile_list=$( conan profile list -vquiet )
+
+  target="$( basename ${ver} )"
+  OIFS="${IFS}"
+  IFS="." ; read cc dirconfig extra <<< "${target}"
+  IFS="${OIFS}"
+  for pr in ${cc}${config} ${cc}${dirconfig} ${cc} default
+  do
+    if echo "${conan_profile_list}" | grep -qwx "${pr}"
+    then
+      break
+    fi
+  done
+  # Starting in $maindir
+  pushd "${builddir}"
+  for dir in conan*
+  do
+    if [[ -f "${dir}" ]]
+    then
+      echo "Skipping file ${dir}" 2>&1 | tee -a "${outputfile}"
+      continue
+    fi
+    if [[ ! -d "${dir}" ]]
+    then
+      echo "No conan folder created" 2>&1 | tee -a "${outputfile}"
+      return 1
+    fi
+    # Starting in $builddir
+    pushd "${dir}"
+    cmd=( conan install "${maindir}" --output-folder . --build missing -pr
+      ${pr} -pr:b ${pr} )
+    if [[ -n "${config}" ]]
+    then
+      cmd+=( --settings build_type=${config} )
+    elif [[ -n "${dirconfig}" ]]
+    then
+      cmd+=( --settings build_type=${dirconfig} )
+    fi
+    _run "${cmd[@]}"
+    # Back to $builddir
+    popd
+  done
+  # Back to $maindir
+  popd
+}
+
+__simple_config()
+{
+  # Usage: __simple_config ver
+  local ver="$1"
+  shift
+
+  cmd=( cmake "${ver}" )
+  _run "${cmd[@]}"
+}
+
+__simple_build()
+{
+  # Usage: __simple_build: ver config
+  local ver="$1"
+  shift
+  local config="$1"
+  shift
+
+  cmd=( cmake --build "${ver}" )
+  if [ -n "${config}" ]
+  then
+    cmd+=( --config "${config}" )
+  fi
+  if [[ "${OS}" =~ "Windows" ]]
+  then
+    cmd+=( -- -m )
+  else
+    numProcs=$( nproc )
+    case "$HOSTNAME" in
+      lyndisty)
+        # numProcs=$[ $numProcs / 2 ]
+        ;;
+    esac
+    cmd+=( -- "-j${numProcs}" )
+  fi
+  _run "${cmd[@]}"
+}
+
+__simple_test()
+{
+  # Usage: __simple_test ver config binary testparams...
+  local ver="$1"
+  shift
+  local config="$1"
+  shift
+  local binary="$1"
+  shift
+  local params=( "${@}")
+
+  pushd "${ver}"
+  path="$(pwd)/"
+  popd
+  if [ -n "${config}" ]
+  then
+    path+="${config}/"
+  fi
+  path+="${binary}"
+  for param in "${params[@]}"
+  do
+    cmd=( "${path}" $param )
+    _run "${cmd[@]}"
+  done
+}
+
+# Shell expansion if necessary, since dirs may not have existed before
+# this point
+dirs=( $( echo "${dirs[@]}" ) )
+exit=0
+for command in __simple_conan __simple_config __simple_build __simple_test
+do
+  if [[ "$( type -t ${command}_pre )" == "function" ]]
+  then
+    echo ${command}_pre 2>&1 | tee -a "${outputfile}"
+    ${command}_pre
+  fi
+  for ver in "${dirs[@]}"
+  do
+    for config in "${configs[@]}"
+    do
+      echo $command "$ver" "$config" "$binary" "${@}" 2>&1 | \
+        tee -a "${outputfile}"
+      # Need to format it this way to capture the exit code $?
+      if $command "$ver" "$config" "$binary" "${@}"
+      then
+        true
+      else
+        exit=$?
+        break 3
+      fi
+    done
+  done
+  if [[ "$( type -t ${command}_post )" == "function" ]]
+  then
+    echo ${command}_post 2>&1 | tee -a "${outputfile}"
+    ${command}_post
+  fi
+done
+
+echo -en "\nRun: Finish up " 2>&1 | tee -a "${outputfile}"
+date 2>&1 | tee -a "${outputfile}"
+grep -e failures -e "1 failure" "${outputfile}"
+
+exit ${exit}
