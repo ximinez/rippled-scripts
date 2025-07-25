@@ -399,7 +399,7 @@ do
   fi
 done
 
-echo -en "\nRun: Finish up " 2>&1 | tee -a "${outputfile}"
+echo -en "\nRun: INFO: Finish up " 2>&1 | tee -a "${outputfile}"
 date 2>&1 | tee -a "${outputfile}"
 grep -e failures -e "1 failure" "${outputfile}"
 
