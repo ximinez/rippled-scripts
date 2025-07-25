@@ -78,11 +78,22 @@ fi
 # If there aren't, run all tests with as many jobs as processors.
 if [[ $# -gt 0 ]]
 then
+  for runparam in "$@"
+  do
+    if echo "$runparam"  | grep -- "--unittest\($\| *\($\|-\)\)"
+    then
+      echo Automatically enabling ctest, since all other tests are being run
+      ctest=1
+      break
+    fi
+  done
   params+=( "$@" )
 else
   numProcs=$( nproc )
 
   params+=( "--unittest --unittest-jobs=${numProcs}" )
+  echo Automatically enabling ctest along with all other tests
+  ctest=1
 fi
 params=( "rippled" "${params[@]}" )
 if [[ "${ctest}" -eq 1 ]]

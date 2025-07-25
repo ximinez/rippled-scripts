@@ -368,10 +368,28 @@ __simple_ctest()
   pushd "${ver}"
   path="$(pwd)/"
   popd
-  params=( -j ${nproc} --output-on-failure --test-dir "${path}" )
+  threads=$(nproc)
+  params=( -j "${threads}" --output-on-failure --test-dir "${path}" )
   if [ -n "${config}" ]
   then
     params+=( -C "${config}" )
+  fi
+  if [[ "${OS}" =~ "Windows" ]]
+  then
+    # Windows gets in trouble with locked cmake files when running in parallel
+    #
+    # For example:
+    # 1/4 Test #4: xrpl.test.crypto.build ...........***Failed    0.96 sec
+    # MSBuild version 17.14.8+a7a4d5af0 for .NET Framework
+    #
+    # C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\MSBuild\Microsoft\VC\v170\Microsoft.CppBuild.targets(389,5): error MSB3374: The last access/last write time on file "x64\Debug\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild" cannot be set. The process cannot access the file '[...]\x64\Debug\ZERO_CHECK\ZERO_CHECK.tlog\unsuccessfulbuild' because it is being used by another process.  [[...]\ZERO_CHECK.vcxproj]
+    tests=$( ctest "${params[@]}" --show-only | \
+      awk '/^Total Tests:/ {print $3}' )
+    if [[ "${tests}" == "" ]]
+    then
+      tests="${threads}"
+    fi
+    params+=( --repeat until-pass:"${tests}" )
   fi
 
   cmd=( "ctest" "${params[@]}" )
