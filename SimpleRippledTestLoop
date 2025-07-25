@@ -16,11 +16,25 @@
 maindir="$(pwd)"
 builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
 
-if [[ "$1" == "--clean" ]]
-then
-  rm -rf "${builddir}/cmake" "${builddir}/conan"*
-  shift
-fi
+ctest=0
+while [[ $# -gt 0 ]]
+do
+  if [[ "$1" == "--clean" ]]
+  then
+    rm -rf "${builddir}/cmake" "${builddir}/conan"*
+    shift
+  elif [[ "$1" == "--ctest" ]]
+  then
+    if [[ -x $( type -p ctest ) ]]
+    then
+      ctest=1
+    fi
+    shift
+  else
+    break
+  fi
+done
+
 
 if [ ! -e "${builddir}/cmake" ]
 then
@@ -70,5 +84,10 @@ else
 
   params+=( "--unittest --unittest-jobs=${numProcs}" )
 fi
-$( dirname "${BASH_SOURCE}" )/SimpleTestLoop rippled \
+params=( "rippled" "${params[@]}" )
+if [[ "${ctest}" -eq 1 ]]
+then
+  params=( "--ctest" "${params[@]}" )
+fi
+$( dirname "${BASH_SOURCE}" )/SimpleTestLoop \
   "${params[@]}"

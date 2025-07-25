@@ -31,7 +31,8 @@
 
 if [ $# -eq 0 ]
 then
-  echo Usage: $BASH_SOURCE [--clean] {binary_name} [ {cmake dir name} [...] ] \
+  echo Usage: $BASH_SOURCE [--clean] [--ctest] {binary_name} \
+    [ {cmake dir name} [...] ] \
     [ {executable params} [...] ]
   exit 1
 fi
@@ -39,18 +40,31 @@ fi
 maindir="$(pwd)"
 builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
 
-if [[ "$1" == "--clean" ]]
-then
-  rm -rf "${builddir}/cmake" "${builddir}/conan"*
-  shift
-fi
+ctest=0
+while [[ $# -gt 0 ]]
+do
+  if [[ "$1" == "--clean" ]]
+  then
+    rm -rf "${builddir}/cmake" "${builddir}/conan"*
+    shift
+  elif [[ "$1" == "--ctest" ]]
+  then
+    if [[ -x $( type -p ctest ) ]]
+    then
+      ctest=1
+    fi
+    shift
+  else
+    break
+  fi
+done
 
 binary=$1
 shift
 
 if [ ! -e "${builddir}/cmake" ]
 then
-  echo -n "Run: git checkout "
+  echo -n "Run: git checkout " | tee -a "${outputfile}"
   date
   ( time git checkout )
 fi
@@ -177,7 +191,7 @@ __simple_conan_pre()
 {
   if [[ "${conan}" -ne 1 ]]
   then
-    echo Conan not used in this project
+    echo Conan not used in this project | tee -a "${outputfile}"
     return 0
   fi
   _run rm -rfv "${builddir}/save.conan"*
@@ -196,7 +210,7 @@ __simple_conan_post()
 {
   if [[ "${conan}" -ne 1 ]]
   then
-    echo Conan not used in this project
+    echo Conan not used in this project | tee -a "${outputfile}"
     return 0
   fi
   for dir in "${builddir}/conan"*
@@ -247,7 +261,7 @@ __simple_conan()
   # Usage: __simple_conan: ver config
   if [[ "${conan}" -ne 1 ]]
   then
-    echo Conan not used in this project
+    echo Conan not used in this project | tee -a "${outputfile}"
     return 0
   fi
   local ver="$1"
@@ -339,6 +353,31 @@ __simple_build()
   _run "${cmd[@]}"
 }
 
+__simple_ctest()
+{
+  # Usage: __simple_ctest ver config...
+  if [[ "${ctest}" -ne 1 ]]
+  then
+    echo ctest not requested | tee -a "${outputfile}"
+    return 0
+  fi
+  local ver="$1"
+  shift
+  local config="$1"
+
+  pushd "${ver}"
+  path="$(pwd)/"
+  popd
+  params=( -j ${nproc} --output-on-failure --test-dir "${path}" )
+  if [ -n "${config}" ]
+  then
+    params+=( -C "${config}" )
+  fi
+
+  cmd=( "ctest" "${params[@]}" )
+  _run "${cmd[@]}"
+}
+
 __simple_test()
 {
   # Usage: __simple_test ver config binary testparams...
@@ -369,7 +408,8 @@ __simple_test()
 # this point
 dirs=( $( echo "${dirs[@]}" ) )
 exit=0
-for command in __simple_conan __simple_config __simple_build __simple_test
+for command in __simple_conan __simple_config __simple_build \
+  __simple_ctest __simple_test
 do
   if [[ "$( type -t ${command}_pre )" == "function" ]]
   then
