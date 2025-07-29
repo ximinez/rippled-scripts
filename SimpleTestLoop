@@ -459,6 +459,7 @@ done
 
 echo -en "\nRun: INFO: Finish up " 2>&1 | tee -a "${outputfile}"
 date 2>&1 | tee -a "${outputfile}"
-grep -e failures -e "1 failure" "${outputfile}"
+grep -e failures -e "1 failure" -e "tests* passed.*tests* failed" \
+  "${outputfile}"
 
 exit ${exit}
