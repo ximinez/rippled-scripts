@@ -80,7 +80,7 @@ if [[ $# -gt 0 ]]
 then
   for runparam in "$@"
   do
-    if echo "$runparam"  | grep -- "--unittest\($\| *\($\|-\)\)"
+    if echo "$runparam"  | grep -- "--unittest\($\| *\($\| -\)\)"
     then
       echo Automatically enabling ctest, since all other tests are being run
       ctest=1
