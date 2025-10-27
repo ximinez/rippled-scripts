@@ -369,7 +369,7 @@ __simple_ctest()
   path="$(pwd)/"
   popd
   threads=$(nproc)
-  params=( -j "${threads}" --output-on-failure --test-dir "${path}" )
+  params=( -V -j "${threads}" --output-on-failure --test-dir "${path}" )
   if [ -n "${config}" ]
   then
     params+=( -C "${config}" )
