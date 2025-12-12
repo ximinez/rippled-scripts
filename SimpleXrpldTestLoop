@@ -1,0 +1,104 @@
+#!/bin/bash
+
+# Intended to be run from a rippled working directory.
+#
+# There is some weirdness with the bash shell (or maybe my individual
+# setup) where this won't always work if run as a script, so copy/paste
+# or run using `source SimpleRippledTestLoop`.
+#
+# This script assumes you have hooks set up from
+# https://github.com/ximinez/git-scripts,
+# particularly post-checkout
+#
+# See SimpleTestLoop for usage, except you don't need to specify the
+# binary_name. Default will run all unittests in parallel
+
+maindir="$(pwd)"
+builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
+
+ctest=0
+while [[ $# -gt 0 ]]
+do
+  if [[ "$1" == "--clean" ]]
+  then
+    rm -rf "${builddir}/cmake" "${builddir}/conan"*
+    shift
+  elif [[ "$1" == "--ctest" ]]
+  then
+    if [[ -x $( type -p ctest ) ]]
+    then
+      ctest=1
+    fi
+    shift
+  else
+    break
+  fi
+done
+
+
+if [ ! -e "${builddir}/cmake" ]
+then
+  echo -n "Run: git checkout "
+  date
+  ( time git checkout )
+fi
+
+params=()
+# Look for directories
+while [[ $# -gt 0 ]]
+do
+  if [[ -d "${builddir}/cmake/$1" ]]
+  then
+    params+=( "${builddir}/cmake/$1" )
+    shift
+  elif [[ -d $1 ]]
+  then
+    params+=( "$1" )
+    shift
+  else
+    break
+  fi
+done
+# Look for Windows targets
+if [[ "${OS}" =~ "Windows" ]]
+then
+  while [[ $# -gt 0 ]]
+  do
+    if [[ "$1" == "Debug" || "$1" == "Release" ]]
+    then
+      params+=( "$1" )
+      shift
+    else
+      break
+    fi
+  done
+fi
+# If there are any parameters left, they are command-line params for
+# rippled.
+# If there aren't, run all tests with as many jobs as processors.
+if [[ $# -gt 0 ]]
+then
+  for runparam in "$@"
+  do
+    if echo "$runparam"  | grep -- "--unittest\($\| *\($\| -\)\)"
+    then
+      echo Automatically enabling ctest, since all other tests are being run
+      ctest=1
+      break
+    fi
+  done
+  params+=( "$@" )
+else
+  numProcs=$( nproc )
+
+  params+=( "--unittest --unittest-jobs=${numProcs}" )
+  echo Automatically enabling ctest along with all other tests
+  ctest=1
+fi
+params=( "xrpld" "${params[@]}" )
+if [[ "${ctest}" -eq 1 ]]
+then
+  params=( "--ctest" "${params[@]}" )
+fi
+$( dirname "${BASH_SOURCE}" )/SimpleTestLoop \
+  "${params[@]}"
