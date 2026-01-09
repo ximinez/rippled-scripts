@@ -31,9 +31,13 @@
 
 if [ $# -eq 0 ]
 then
-  echo Usage: $BASH_SOURCE [--clean] [--ctest] {binary_name} \
+  echo Usage: $BASH_SOURCE [--clean] [--ctest] [--debug] {binary_name} \
     [ {cmake dir name} [...] ] \
     [ {executable params} [...] ]
+  echo "--clean: Recursively deletes the build directory before running"
+  echo "--ctest: Force ctest suite(s) to run regardless of other parameters"
+  echo "--debug: Run the test(s) in a debugger if possible"
+
   exit 1
 fi
 
@@ -41,6 +45,7 @@ maindir="$(pwd)"
 builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
 
 ctest=0
+debug=()
 while [[ $# -gt 0 ]]
 do
   if [[ "$1" == "--clean" ]]
@@ -52,6 +57,16 @@ do
     if [[ -x $( type -p ctest ) ]]
     then
       ctest=1
+    fi
+    shift
+  elif [[ "$1" == "--debug" ]]
+  then
+    if type -p lldb 2>&1 >/dev/null
+    then
+      debug=( lldb --batch -o run -- )
+    else
+      echo "Can't find a debugger. Don't use --debug" >&2
+      exit 1
     fi
     shift
   else
@@ -415,10 +430,11 @@ __simple_test()
     path+="${config}/"
   fi
   path+="${binary}"
+
   for param in "${params[@]}"
   do
-    cmd=( "${path}" $param )
-    _run "${cmd[@]}"
+    cmd=( "${debug[@]}" "${path}" $param )
+    _run "${cmd[@]}" || return $?
   done
 }
 
