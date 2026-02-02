@@ -16,7 +16,7 @@
 maindir="$(pwd)"
 builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
 
-ctest=0
+preparams=()
 while [[ $# -gt 0 ]]
 do
   if [[ "$1" == "--clean" ]]
@@ -25,10 +25,11 @@ do
     shift
   elif [[ "$1" == "--ctest" ]]
   then
-    if [[ -x $( type -p ctest ) ]]
-    then
-      ctest=1
-    fi
+    preparams+=( "--ctest" )
+    shift
+  elif [[ "$1" == "--debug" ]]
+  then
+    preparams+=( "--debug" )
     shift
   else
     break
@@ -83,7 +84,7 @@ then
     if echo "$runparam"  | grep -- "--unittest\($\| *\($\| -\)\)"
     then
       echo Automatically enabling ctest, since all other tests are being run
-      ctest=1
+      preparams+=( "--ctest" )
       break
     fi
   done
@@ -93,12 +94,10 @@ else
 
   params+=( "--unittest --unittest-jobs=${numProcs}" )
   echo Automatically enabling ctest along with all other tests
-  ctest=1
+  preparams+=( "--ctest" )
 fi
-params=( "rippled" "${params[@]}" )
-if [[ "${ctest}" -eq 1 ]]
-then
-  params=( "--ctest" "${params[@]}" )
-fi
+
+params=( "${preparams[@]}" "rippled" "${params[@]}" )
+
 $( dirname "${BASH_SOURCE}" )/SimpleTestLoop \
   "${params[@]}"

@@ -429,6 +429,27 @@ __simple_test()
   then
     path+="${config}/"
   fi
+
+  # While rippled is changing names to xrpld, if one doesn't exist, try
+  # the other.
+  if [[ "${binary}" == "rippled" ]]
+  then
+      testpath="${path}"
+      testpath+="${binary}"
+      if [[ ! -x "$testpath" ]]
+      then
+          binary="xrpld"
+      fi
+  elif [[ "${binary}" == "xrpld" ]]
+  then
+      testpath="${path}"
+      testpath+="${binary}"
+      if [[ ! -x "$testpath" ]]
+      then
+          binary="rippled"
+      fi
+  fi
+
   path+="${binary}"
 
   for param in "${params[@]}"
