@@ -51,8 +51,8 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n transactions
-    $( dirname $0)/redirect
-    "transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT} ${LAST_LEDGER_FILE}"
+    $( dirname $0)/redirect \
+    "transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT} ${LAST_LEDGER_FILE}" \
     ${HOME}/rippled/transactions-output.txt )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
@@ -60,8 +60,16 @@ then
   # --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
 
   cmd=( "${tmuxcommand[@]}"
+    -n validators
+    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} validators | jq \
+    '.result | { publisher_lists: .publisher_lists | map(del(.list)), trusted_validator_keys: .trusted_validator_keys | length, validation_quorum, validator_list }'"
+    )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
+
+  cmd=( "${tmuxcommand[@]}"
     -n peerfinder
-    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq
+    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq \
     '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'"
     )
   echo "Run: ${cmd[@]}"
