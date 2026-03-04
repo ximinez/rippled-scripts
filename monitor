@@ -61,8 +61,8 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n validators
-    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} validators | jq \
-    '.result | { publisher_lists: .publisher_lists | map(del(.list)), trusted_validator_keys: .trusted_validator_keys | length, validation_quorum, validator_list }'"
+    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} validators | jq -S \
+    '.result | { publisher_lists: .publisher_lists | map(. + {size: .list | length} | del(.list)), trusted_validator_keys: .trusted_validator_keys | length, validation_quorum, validator_list }'"
     )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
