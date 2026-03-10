@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [[ "$1" == "health" ]]
+then
+  function="health"
+  shift
+fi
+
 RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
 RPC_PORT=${3:-5015}
@@ -18,7 +24,90 @@ then
   fi
 fi
 
+rd()
+{
+  ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} "$@"
+}
 
+if [[ "${function}" == "health" ]]
+then
+  set -e
+  output=$( mktemp )
+  rd server_info > "${output}"
+  cat "${output}" | jq '.result.info | {
+    server_state,
+    build_version,
+    peers,
+    validated_ledger_age: .validated_ledger.age,
+    validated_ledger_seq: .validated_ledger.seq,
+    validated_ledger_hash: .validated_ledger.hash,
+    complete_ledgers,
+    load_factor,
+    last_close_time_s: .last_close.converge_time_s,
+    peer_disconnects
+  }' || ( c=$? && gvim "${output}" && exit $c )
+  rd consensus_info > "${output}"
+  cat "${output}" | jq '.result.info |
+    {
+      acquired: (.acquired // []) | length,
+      close_resolution, converge_percent,
+      disputes: (.disputes // []) | length,
+      active_disputes: (.disputes // []) |
+        map_values(select(.yays > 0 and .nays > 0)) | length,
+      have_time_consensus, ledger_seq,
+      peer_positions: (.peer_positions // []) | length,
+      phase, current_ms, previous_mseconds, previous_proposers,
+      proposers, proposing, synched, validating
+    }' || ( c=$? && gvim "${output}" && exit $c )
+  rd peers > "${output}"
+  cat "${output}" | jq \
+    '.result.peers | {
+      peer_count: .| length
+    } +
+    (
+      [.[] | {address, latency}]
+      | {
+        worst_peer: . | max_by(.latency),
+        best_peer: . | min_by(.latency),
+      }
+    ) +
+    (
+      [.[] | {version}]
+      | {
+        versions: . | group_by(.version) |
+          map({key: .[0].version, value: length}) |
+          from_entries
+      }
+    )' || ( c=$? && gvim "${output}" && echo $c )
+  rd get_counts > "${output}"
+  cat "${output}" | jq '.result | {
+    dbKBTotal,
+    ledger_hit_rate,
+    AL_hit_rate,
+    write_load,
+    node_reads_total,
+    node_writes
+  }'
+  rd validators > "${output}"
+  cat "${output}" | jq -S \
+    '.result | { publisher_lists: .publisher_lists |
+      map(. + {size: (.list // []) | length} | del(.list)),
+        trusted_validator_keys: (.trusted_validator_keys // []) | length,
+        validation_quorum, validator_list
+      }' || ( c=$? && gvim "${output}" && echo $c )
+  rm -f "${output}"
+  rd feature > "${output}"
+  cat "${output}" | jq -S \
+  '.result.features |
+    map(
+      select(.enabled == false and .supported == true and
+        .vetoed != "Obsolete") | {key: .name, value: .count}
+    ) | from_entries'
+
+  exit
+fi
+
+#
 # echo $RIPPLED $RPC_PORT $PEER_PORT
 
 if type -t tmux >& /dev/null
@@ -32,10 +121,17 @@ then
 
   if [[ -z "${TMUX}" ]]
   then
-    cmd=( tmux new-session -d -s monitor sleep 600 )
+    cmd=( tmux new-session -d -s monitor -n sleep sleep 60 )
     echo "Run: ${cmd[@]}"
     "${cmd[@]}" || true
   fi
+
+  cmd=( "${tmuxcommand[@]}"
+    -n health
+    watch -d "$0 health ${RIPPLED} ${RPC_IP} ${RPC_PORT} ${PEER_PORT}"
+    )
+  echo "Run: ${cmd[@]}"
+  "${cmd[@]}" || true
 
   cmd=( "${tmuxcommand[@]}"
     -n server_info
@@ -58,14 +154,6 @@ then
   "${cmd[@]}" || true
   # tmux set-option -w -t monitor:transactions remain-on-exit on
   # --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
-
-  cmd=( "${tmuxcommand[@]}"
-    -n validators
-    watch -d "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} validators | jq -S \
-    '.result | { publisher_lists: .publisher_lists | map(. + {size: .list | length} | del(.list)), trusted_validator_keys: .trusted_validator_keys | length, validation_quorum, validator_list }'"
-    )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
 
   cmd=( "${tmuxcommand[@]}"
     -n peerfinder
@@ -114,7 +202,7 @@ then
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
 
-  cmd=( tmux select-window -t monitor:server_info )
+  cmd=( tmux select-window -t monitor:health )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}"
 
