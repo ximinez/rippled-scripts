@@ -58,8 +58,11 @@ fi
 if [[ -z "${TMUX}" ]] && type -t tmux >& /dev/null
 then
   # set -x
+  # Run the post-checkout script
+  cmd=( git checkout )
+  _run "${cmd[@]}" || true
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
-    sleep 600 )
+    -n sleep sleep 600 )
   _run "${cmd[@]}" || true
   cmd=( tmux new-window -d -a -t rippled:$ -n dogfood \
     "${0}" "${@}" wait )
@@ -288,7 +291,7 @@ then
   launch=( tmux new-window -a -t rippled:$ -n rippled )
   switch=( tmux last-window )
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30
-    sleep 600 )
+    -n sleep sleep 600 )
   _run "${cmd[@]}" || true
   # Give the terminal a few seconds to create
   sleep 2
