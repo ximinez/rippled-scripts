@@ -3,11 +3,11 @@
 # Show the spread of a currency pair
 
 pair=( ${1} ${2} )
-shift 2
+shift $[ $# < 2 ? $# : 2 ]
 RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
 RPC_PORT=${3:-51235}
-shift 3
+shift $[ $# < 3 ? $# : 3 ]
 
 name()
 {

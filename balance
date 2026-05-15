@@ -18,7 +18,7 @@ done
 RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
 RPC_PORT=${3:-51235}
-shift 3
+shift $[ $# < 3 ? $# : 3 ]
 accounts=( ${@:-${defaultaccount[@]}} )
 
 name()

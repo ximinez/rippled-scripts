@@ -5,7 +5,7 @@
 rpc_ip=${1:-"127.0.0.1:5015"}
 ssh_host=${2:-localhost}
 rpc_private=${3:-5015}
-shift 3
+shift $[ $# < 3 ? $# : 3 ]
 unset file
 if [[ $# -gt 0 ]]
 then
