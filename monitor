@@ -34,7 +34,7 @@ then
   set -e
   output=$( mktemp )
   rd server_info > "${output}"
-  cat "${output}" | jq --color-output '.result.info | {
+  cat "${output}" | jq '.result.info | {
     server_state,
     build_version,
     peers,
@@ -47,7 +47,7 @@ then
     peer_disconnects
   }' || ( c=$? && gvim "${output}" && exit $c )
   rd consensus_info > "${output}"
-  cat "${output}" | jq --color-output '.result.info |
+  cat "${output}" | jq '.result.info |
     {
       acquired: (.acquired // []) | length,
       close_resolution, converge_percent,
@@ -60,7 +60,7 @@ then
       proposers, proposing, synched, validating
     }' || ( c=$? && gvim "${output}" && exit $c )
   rd peers > "${output}"
-  cat "${output}" | jq --color-output \
+  cat "${output}" | jq \
     '.result.peers | {
       peer_count: .| length
     } +
@@ -80,7 +80,7 @@ then
       }
     )'
   rd get_counts > "${output}"
-  cat "${output}" | jq --color-output '.result | {
+  cat "${output}" | jq '.result | {
     dbKBTotal,
     ledger_hit_rate,
     AL_hit_rate,
@@ -89,7 +89,7 @@ then
     node_writes
   }'
   rd validators > "${output}"
-  cat "${output}" | jq --color-output --sort-keys \
+  cat "${output}" | jq --sort-keys \
     '.result | { publisher_lists: .publisher_lists |
       map(. + {size: (.list // []) | length} | del(.list)),
         trusted_validator_keys: (.trusted_validator_keys // []) | length,
@@ -97,7 +97,7 @@ then
       }' || ( c=$? && gvim "${output}" && echo $c )
   rm -f "${output}"
   rd feature > "${output}"
-  cat "${output}" | jq --color-output --sort-keys \
+  cat "${output}" | jq --sort-keys \
   '.result.features |
     map(
       select(.enabled == false and .supported == true and
@@ -132,14 +132,14 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n health
-    watch --color $0 health ${RIPPLED} ${RPC_IP} ${RPC_PORT} ${PEER_PORT}
+    watch $0 health ${RIPPLED} ${RPC_IP} ${RPC_PORT} ${PEER_PORT}
     )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
 
   cmd=( "${tmuxcommand[@]}"
     -n server_info
-    watch --color server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT} )
+    watch server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT} )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
 
@@ -161,8 +161,8 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n peerfinder
-    watch --color "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | \
-    jq --color-output \
+    watch "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | \
+    jq \
     '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'"
     )
   echo "Run: ${cmd[@]}"
@@ -170,7 +170,7 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n get_counts
-    watch --color ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1 )
+    watch ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1 )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
 
@@ -203,7 +203,7 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n fee
-    watch --color ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee )
+    watch ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee )
   echo "Run: ${cmd[@]}"
   "${cmd[@]}" || true
 
@@ -223,14 +223,26 @@ then
   fi
 else
   gnome-terminal \
-    --window-with-profile=Unnamed -t server_info --command="watch --color --differences  server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
-    --tab-with-profile=Persistent -t balance --command="watch --differences=permanent balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
-    --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
-    --tab-with-profile=Persistent -t peerfinder --command="watch --differences \"${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
-    --tab-with-profile=Persistent -t get_counts --command="watch --color --differences${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1" \
-    --tab-with-profile=Persistent -t crawl --command="watch --differences curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
-    --tab-with-profile=Persistent -t vl --command="watch --differences curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
-    --tab-with-profile=Persistent -t top --command="top" \
-    --tab-with-profile=Persistent -t bandwidth --command="redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv" \
-    --tab-with-profile=Persistent -t fee --command="watch --color --differences ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
+    --window-with-profile=Unnamed -t health \
+      --command"watch --color $0 health ${RIPPLED} ${RPC_IP} ${RPC_PORT} ${PEER_PORT}"
+    --tab-with-profile=Unnamed -t server_info \
+      --command="watch --color --differences  server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
+    --tab-with-profile=Persistent -t balance \
+      --command="watch --differences=permanent balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}" \
+    --tab-with-profile=Persistent -t transactions \
+      --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
+    --tab-with-profile=Persistent -t peerfinder \
+      --command="watch --differences \"${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | jq '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'\"" \
+    --tab-with-profile=Persistent -t get_counts \
+      --command="watch --color --differences${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1" \
+    --tab-with-profile=Persistent -t crawl \
+      --command="watch --differences curl -k https://${RPC_IP}:${PEER_PORT}/crawl" \
+    --tab-with-profile=Persistent -t vl \
+      --command="watch --differences curl -k https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734" \
+    --tab-with-profile=Persistent -t top \
+      --command="top" \
+    --tab-with-profile=Persistent -t bandwidth \
+      --command="redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv" \
+    --tab-with-profile=Persistent -t fee \
+      --command="watch --color --differences ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee"
 fi
