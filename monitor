@@ -29,6 +29,13 @@ rd()
   ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} "$@"
 }
 
+_run()
+{
+  # Usage: _run: command
+  echo "Run: ${@}"
+  "${@}" || true
+}
+
 if [[ "${function}" == "health" ]]
 then
   set -e
@@ -44,7 +51,9 @@ then
     complete_ledgers,
     load_factor,
     last_close_time_s: .last_close.converge_time_s,
-    peer_disconnects
+    peer_disconnects,
+    time,
+    uptime
   }' || ( c=$? && gvim "${output}" && exit $c )
   rd consensus_info > "${output}"
   cat "${output}" | jq '.result.info |
@@ -118,6 +127,9 @@ then
   fi
 
   tmuxcommand=( tmux new-window -d -a -t monitor:$ )
+  remain=( tmux
+    set -t monitor:$ -w remain-on-exit on
+    )
 
   if [[ -z "${TMUX}" ]]
   then
@@ -134,28 +146,31 @@ then
     -n health
     watch $0 health ${RIPPLED} ${RPC_IP} ${RPC_PORT} ${PEER_PORT}
     )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n server_info
-    watch server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT} )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    watch server_info ${RIPPLED} ${RPC_IP} ${RPC_PORT}
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n balance
-    watch balance ${RIPPLED} ${RPC_IP} ${RPC_PORT} )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    watch balance ${RIPPLED} ${RPC_IP} ${RPC_PORT}
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n transactions
     $( dirname $0)/redirect \
     "transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT} ${LAST_LEDGER_FILE}" \
-    ${HOME}/rippled/transactions-output.txt )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    ${HOME}/rippled/transactions-output.txt
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
   # tmux set-option -w -t monitor:transactions remain-on-exit on
   # --tab-with-profile=Persistent -t transactions --command="$( dirname $0)/redirect \"transactions ${RPC_IP}:${RPC_PORT} localhost ${RPC_PORT}\" ${HOME}/rippled/transactions-output.txt" \
 
@@ -165,61 +180,62 @@ then
     jq \
     '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'"
     )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n get_counts
-    watch ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1 )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    watch ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} get_counts 1
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n crawl
-    watch curl -k https://${RPC_IP}:${PEER_PORT}/crawl )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    watch curl -k https://${RPC_IP}:${PEER_PORT}/crawl
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n vl
     watch curl -k
     https://${RPC_IP}:${PEER_PORT}/vl/ED2677ABFFD1B33AC6FBC3062B71F1E8397C1505E1C42C64D11AD1B28FF73F4734
     )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n top
-    top )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    top
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n bandwidth
     redirect 'bwm-ng -o csv -c 0 -t 10000' ${HOME}/rippled/bandwidth.csv
     )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( "${tmuxcommand[@]}"
     -n fee
-    watch ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}" || true
+    watch ${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} fee
+    )
+  _run "${cmd[@]}"
+  _run "${remain[@]}"
 
   cmd=( tmux select-window -t monitor:health )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}"
+  _run "${cmd[@]}"
 
   cmd=( tmux kill-window -t monitor:sleep )
-  echo "Run: ${cmd[@]}"
-  "${cmd[@]}"
+  _run "${cmd[@]}"
 
   if [[ -z "${TMUX}" ]]
   then
     cmd=( tmux attach -t monitor )
-    echo "Run: ${cmd[@]}"
-    "${cmd[@]}"
+    _run "${cmd[@]}"
   fi
 else
   gnome-terminal \
