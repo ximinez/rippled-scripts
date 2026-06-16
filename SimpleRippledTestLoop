@@ -14,14 +14,22 @@
 # binary_name. Default will run all unittests in parallel
 
 maindir="$(pwd)"
-builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
+builddir="build"
 
 preparams=()
 while [[ $# -gt 0 ]]
 do
   if [[ "$1" == "--clean" ]]
   then
-    rm -rf "${builddir}/cmake" "${builddir}/conan"*
+    echo Cleaning artifacts
+    for d in ${builddir}/*
+    do
+      if [[ -d "$d" ]]
+      then
+        echo Deleting $d
+        rm -rf "$d"
+      fi
+    done
     shift
   elif [[ "$1" == "--ctest" ]]
   then

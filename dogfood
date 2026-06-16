@@ -5,6 +5,7 @@ nproc=$(nproc)
 unset windows
 
 terminal=
+remain=
 if [[ "${OS}" =~ "Windows" ]]
 then
   windows=1
@@ -26,7 +27,7 @@ else
   dos2unix="cat -v"
 fi
 
-builddir="$(dirname $(pwd))/build/$(basename $(pwd))"
+builddir="build"
 logfile="${builddir}/dogfood.out"
 tmpfile="${builddir}/dogfood.tmp"
 rm -fv "${logfile}"
@@ -58,14 +59,13 @@ fi
 if [[ -z "${TMUX}" ]] && type -t tmux >& /dev/null
 then
   # set -x
-  # Run the post-checkout script
-  cmd=( git checkout )
-  _run "${cmd[@]}" || true
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30 \
     -n sleep sleep 600 )
   _run "${cmd[@]}" || true
   cmd=( tmux new-window -d -a -t rippled:$ -n dogfood \
     "${0}" "${@}" wait )
+  _run "${cmd[@]}" || true
+  cmd=( tmux set -t rippled:$ -w remain-on-exit on )
   _run "${cmd[@]}" || true
   cmd=( tmux select-window -t rippled:dogfood )
   _run "${cmd[@]}" || true
@@ -171,6 +171,12 @@ then
 fi
 
 datestamp=$( date +%s )
+
+sleep 10
+
+# Run the post-checkout script
+cmd=( git checkout )
+_run "${cmd[@]}" || true
 
 time (
   set -o pipefail
@@ -289,6 +295,7 @@ ulimit -c unlimited
 if type -t tmux >& /dev/null
 then
   launch=( tmux new-window -a -t rippled:$ -n rippled )
+  remain=( tmux set -t rippled:$ -w remain-on-exit on )
   switch=( tmux last-window )
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30
     -n sleep sleep 600 )
@@ -393,8 +400,11 @@ do
       _run "${cmd[@]}" || true
       # Start the new rippled
       cmd=( "${launch[@]}" "${gdb[@]}" "${gdbcommands[@]}"
-        "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}" )
+        "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}"
+        )
       _run --direct "${cmd[@]}" || true
+      # Keep it open
+      _run "${remain[@]}" || true
         : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
         : 'C-x a'
       if [[ "${#switch}" -gt 0 ]]
