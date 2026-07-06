@@ -42,7 +42,7 @@ then
 fi
 
 maindir="$(pwd)"
-builddir="build"
+builddir="${maindir}/build"
 
 ctest=0
 debug=()
