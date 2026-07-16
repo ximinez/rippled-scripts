@@ -100,7 +100,7 @@ then
 else
   numProcs=$( nproc )
 
-  params+=( "--unittest --unittest-jobs=${numProcs}" )
+  params+=( "--" "--unittest --unittest-jobs=${numProcs}" )
   echo Automatically enabling ctest along with all other tests
   preparams+=( "--ctest" )
 fi

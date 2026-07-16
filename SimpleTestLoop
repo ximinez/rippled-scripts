@@ -33,6 +33,7 @@ if [ $# -eq 0 ]
 then
   echo Usage: $BASH_SOURCE [--clean] [--ctest] [--debug] {binary_name} \
     [ {cmake dir name} [...] ] \
+    [ -- ] \
     [ {executable params} [...] ]
   echo "--clean: Recursively deletes the build directory before running"
   echo "--ctest: Force ctest suite(s) to run regardless of other parameters"
@@ -467,6 +468,28 @@ __simple_test()
   done
 }
 
+# Verify executable parameters
+runparams=()
+while [[ $# -gt 0 ]]
+do
+    if [[ "$1" == "--" ]]
+    then
+        if [[ "${#runparams[@]}" -gt 0 ]]
+        then
+            echo "Parameters before -- appear to be executable params."
+            echo "They may be misspelled, or in the wrong order."
+            for p in "${runparams[@]}"
+            do
+                echo "* ${p}"
+            done
+            exit 1
+        fi
+    else
+        runparams+=( "$1" )
+    fi
+    shift
+done
+
 # Shell expansion if necessary, since dirs may not have existed before
 # this point
 dirs=( $( echo "${dirs[@]}" ) )
@@ -483,10 +506,10 @@ do
   do
     for config in "${configs[@]}"
     do
-      echo $command "$ver" "$config" "$binary" "${@}" 2>&1 | \
+      echo $command "$ver" "$config" "$binary" "${runparams[@]}" 2>&1 | \
         tee -a "${outputfile}"
       # Need to format it this way to capture the exit code $?
-      if $command "$ver" "$config" "$binary" "${@}"
+      if $command "$ver" "$config" "$binary" "${runparams[@]}"
       then
         true
       else
