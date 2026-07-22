@@ -1,0 +1,86 @@
+#!/bin/bash
+
+function=$1
+shift
+
+seq=$1
+shift
+
+target=$1
+shift
+
+total=0
+
+result()
+{
+    local out="$1"
+    shift
+
+    status=$( echo "$out" | jq -r '.result.status' )
+    marker=$( echo "$out" | jq -r '.result.marker' )
+    if [[ "$target" != "" ]]
+    then
+        count=$( echo "$out" | jq -r $target' | length' )
+        total=$[ $total + $count ]
+    fi
+
+    echo "Seq: $seq, Hash: $hash"
+    echo "Status: $status, Next marker: $marker"
+    if [[ "$target" != "" ]]
+    then
+        echo "Count: $count, Total: $total"
+    fi
+
+    if [[ "$status" != "success" ]]
+    then
+        echo "$out" | jq '( .result | ( .status // .error ) ) // .error'
+        exit 1
+    fi
+
+}
+
+out=$( xrpld -q json ledger '{ "ledger_index" : '$seq' }' )
+
+hash=$( echo "$out" | jq -r '.result.ledger.ledger_hash' )
+seq=$( echo "$out" | jq -r '.result.ledger.ledger_index' )
+
+echo "Hash of ledger $seq is: $hash"
+echo
+
+outfile="$function.$seq.txt"
+echo "$out" > "$outfile"
+
+marker="null"
+
+if [[ "$hash" == "null" ]]
+then
+    echo "$out" | jq
+    exit 1
+fi
+
+date -u
+
+# initial request
+out=$( xrpld -q json "$function" \
+    '{ "ledger_hash" : "'$hash'", "binary" : true }' | \
+    tee -a "$outfile" )
+
+result "$out"
+
+while [[ "$marker" != "null" ]]
+do
+
+    echo
+    date -u
+
+    json=$( echo '{ "ledger_hash" : "'$hash'", "binary" : true, ' \
+        '"marker" : "'$marker'" }' | jq )
+
+    # Other requests
+    out=$( xrpld -q json "$function" "$json" | \
+        tee -a "$outfile" )
+
+    result "$out"
+
+done
+    
