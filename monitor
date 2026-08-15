@@ -9,7 +9,7 @@ fi
 RIPPLED=${1:-$( dirname $0 )/rippled}
 RPC_IP=${2:-127.0.0.1}
 RPC_PORT=${3:-5015}
-PEER_PORT=${4:-51235}
+PEER_PORT=${4:-2459}
 shift $[ $# < 4 ? $# : 4 ]
 unset LAST_LEDGER_FILE
 if [[ $# -gt 0 ]]
