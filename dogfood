@@ -398,19 +398,6 @@ do
       # Save the executable
       cmd=( cp -v "${exe}" "${builddir}/${runfile}.${datestamp}" )
       _run "${cmd[@]}" || true
-      # Start the new rippled
-      cmd=( "${launch[@]}" "${gdb[@]}" "${gdbcommands[@]}"
-        "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}"
-        )
-      _run --direct "${cmd[@]}" || true
-      # Keep it open
-      _run "${remain[@]}" || true
-        : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
-        : 'C-x a'
-      if [[ "${#switch}" -gt 0 ]]
-      then
-        _run --direct "${switch[@]}"
-      fi
 
       # Rotate the logfile(s)
       if [[ -f $HOME/.logrotate.conf ]] && \
@@ -434,6 +421,20 @@ do
             mv -vi "${HOME}/${network}/${file}"{,.${datestamp}} || true
           fi
         done
+      fi
+
+      # Start the new rippled
+      cmd=( "${launch[@]}" "${gdb[@]}" "${gdbcommands[@]}"
+        "${exe}" --conf ${cfgfile} --net "${gdbextra[@]}"
+        )
+      _run --direct "${cmd[@]}" || true
+      # Keep it open
+      _run "${remain[@]}" || true
+        : 'https://sourceware.org/gdb/onlinedocs/gdb/TUI-Commands.html'
+        : 'C-x a'
+      if [[ "${#switch}" -gt 0 ]]
+      then
+        _run --direct "${switch[@]}"
       fi
     done
   else
