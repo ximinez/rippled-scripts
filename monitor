@@ -100,7 +100,8 @@ then
   rd validators > "${output}"
   cat "${output}" | jq --sort-keys \
     '.result | { publisher_lists: .publisher_lists |
-      map(. + {size: (.list // []) | length} | del(.list)),
+      map(. + {size: (.list // []) | length} |
+        del(.list, .available, .version, .uri)),
         trusted_validator_keys: (.trusted_validator_keys // []) | length,
         validation_quorum, validator_list
       }' || ( c=$? && gvim "${output}" && echo $c )
@@ -113,6 +114,11 @@ then
         .vetoed != "Obsolete") | {key: .name, value: .count}
     ) | from_entries'
 
+  rd print peers > "${output}"
+  cat "${output}" | jq \
+    '.result.peers.traffic | map(select([.category] |
+        inside([ "extra_fields", "unknown" ])))' ||
+    ( c=$? && gvim "${output}" && echo $c )
   exit
 fi
 
@@ -176,9 +182,9 @@ then
 
   cmd=( "${tmuxcommand[@]}"
     -n peerfinder
-    watch "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print | \
+    watch "${RIPPLED} -q --rpc_ip=${RPC_IP}:${RPC_PORT} print peerfinder | \
     jq \
-    '.result.app.peers.peerfinder | del(.livecache) | del(.bootcache)'"
+    '.result.peerfinder | del(.livecache) | del(.bootcache)'"
     )
   _run "${cmd[@]}"
   _run "${remain[@]}"
