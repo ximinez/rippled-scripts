@@ -20,14 +20,22 @@ then
     dos2unix="cat -v"
   fi
 else
-  configs=( "" )
-  buildopt="-j${nproc}"
-  launch=()
-  launchdir=""
-  dos2unix="cat -v"
+    if type -t tmux >& /dev/null
+    then
+      launch=( tmux new-window -a -t rippled:$ -n rippled )
+      remain=( tmux set -t rippled:$ -w remain-on-exit on )
+      switch=( tmux last-window )
+    fi
+
+    configs=( "" )
+    buildopt="-j${nproc}"
+    launch=()
+    launchdir=""
+    dos2unix="cat -v"
 fi
 
-builddir="build"
+builddir="$( pwd )/build"
+ls "${builddir}"
 logfile="${builddir}/dogfood.out"
 tmpfile="${builddir}/dogfood.tmp"
 rm -fv "${logfile}"
@@ -124,6 +132,21 @@ do
     shift
     gdb=( lldb )
     gdbextra=( )
+    launch=( )
+    switch=( )
+    if [[ -z "$LLDB_DEBUGSERVER_PATH" ]]
+    then
+        for p in \
+        /Library/Developer/CommandLineTools/Library/PrivateFrameworks/LLDB.framework/Versions/A/Resources/ \
+        /Library/Apple/usr/libexec/oah/debugserver \
+        /usr/libexec/rosetta/debugserver
+        do
+            if [[ -x "${p}/debugserver" ]]
+            then
+                export LLDB_DEBUGSERVER_PATH="${p}/debugserver"
+            fi
+        done
+    fi
   elif [[ "$1" == "test" ]]
   then
     shift
@@ -294,9 +317,6 @@ fi
 ulimit -c unlimited
 if type -t tmux >& /dev/null
 then
-  launch=( tmux new-window -a -t rippled:$ -n rippled )
-  remain=( tmux set -t rippled:$ -w remain-on-exit on )
-  switch=( tmux last-window )
   cmd=( ${terminal} tmux new-session ${tmuxopts} -s rippled -x 80 -y 30
     -n sleep sleep 600 )
   _run "${cmd[@]}" || true
