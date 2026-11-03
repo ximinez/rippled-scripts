@@ -82,21 +82,28 @@ then
     fi
   done
 fi
+
 # If there are any parameters left, they are command-line params for
 # rippled.
 # If there aren't, run all tests with as many jobs as processors.
-if [[ $# -gt 0 ]]
-then
-  for runparam in "$@"
-  do
+for runparam in "$@"
+do
     if echo "$runparam"  | grep -- "--unittest\($\| *\($\| -\)\)"
     then
-      echo Automatically enabling ctest, since all other tests are being run
-      preparams+=( "--ctest" )
-      break
+        echo Automatically enabling ctest, since all other tests are being run
+        preparams+=( "--ctest" )
+        break
     fi
-  done
-  params+=( "$@" )
+done
+
+if [[ $1 == "--" ]]
+then
+    shift
+fi
+
+if [[ $# -gt 0 ]]
+then
+  params+=( "--" "$@" )
 else
   numProcs=$( nproc )
 
@@ -105,7 +112,17 @@ else
   preparams+=( "--ctest" )
 fi
 
-params=( "${preparams[@]}" "rippled" "${params[@]}" )
+self=$( basename $0 )
+case "$self" in
+    SimpleRippledTestLoop)
+        exe="rippled"
+        ;;
+    *)
+        exe="xrpld"
+        ;;
+esac
+
+params=( "${preparams[@]}" "${exe}" "${params[@]}" )
 
 $( dirname "${BASH_SOURCE}" )/SimpleTestLoop \
   "${params[@]}"
