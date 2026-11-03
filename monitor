@@ -40,6 +40,7 @@ if [[ "${function}" == "health" ]]
 then
   set -e
   output=$( mktemp )
+
   rd server_info > "${output}"
   cat "${output}" | jq '.result.info | {
     server_state,
@@ -55,6 +56,16 @@ then
     time,
     uptime
   }' || ( c=$? && gvim "${output}" && exit $c )
+
+  rd fee > "${output}"
+  cat "${output}" | jq '.result | {
+    current_ledger_size,
+    current_queue_size,
+    expected_ledger_size,
+    max_queue_size,
+    open_ledger_fee: .drops.open_ledger_fee
+  }' || ( c=$? && gvim "${output}" && exit $c )
+
   rd consensus_info > "${output}"
   cat "${output}" | jq '.result.info |
     {
@@ -68,6 +79,7 @@ then
       phase, current_ms, previous_mseconds, previous_proposers,
       proposers, proposing, synched, validating
     }' || ( c=$? && gvim "${output}" && exit $c )
+
   rd peers > "${output}"
   cat "${output}" | jq \
     '.result.peers | {
@@ -88,6 +100,7 @@ then
           from_entries
       }
     )'
+
   rd get_counts > "${output}"
   cat "${output}" | jq '.result | {
     dbKBTotal,
@@ -97,6 +110,7 @@ then
     node_reads_total,
     node_writes
   }'
+
   rd validators > "${output}"
   cat "${output}" | jq --sort-keys \
     '.result | { publisher_lists: .publisher_lists |
@@ -106,6 +120,7 @@ then
         validation_quorum, validator_list
       }' || ( c=$? && gvim "${output}" && echo $c )
   rm -f "${output}"
+
   rd feature > "${output}"
   cat "${output}" | jq --sort-keys \
   '.result.features |
@@ -113,6 +128,7 @@ then
       select(.enabled == false and .supported == true and
         .vetoed != "Obsolete") | {key: .name, value: .count}
     ) | from_entries'
+
 
   rd print peers > "${output}"
   cat "${output}" | jq \
